@@ -18,4 +18,4 @@ migrate -path db/migrations -database 'postgres://postgres:postgres@localhost:54
 ```
 
 ## PostgreSQL Migrations
-Migrations are stored in [`db/migrations`](./db/migrations/) and are executed manually using [go-migrate](https://github.com/golang-migrate/migrate). 
+Migrations are stored in [`db/migrations`](src/sql/migrations/) and are executed manually using [go-migrate](https://github.com/golang-migrate/migrate). 

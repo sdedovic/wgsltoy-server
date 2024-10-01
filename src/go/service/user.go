@@ -3,11 +3,14 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"log"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // UsernameRegex validates input is 5 to 15 chars, first one is letter, rest are alphanumeric, -, _, .
@@ -23,9 +26,13 @@ var usernameBlacklist = []string{
 	"website", "websites", "webmaster", "webmail", "yourname", "yourusername", "yoursite", "yourdomain",
 }
 
-func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, password string) error {
+func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, email string, password string) error {
 	if len(username) == 0 {
 		return infra.NewValidationError("Field 'username' is required!")
+	}
+
+	if len(email) == 0 {
+		return infra.NewValidationError("Field 'email' is required!")
 	}
 
 	if len(password) == 0 {
@@ -46,17 +53,38 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, pa
 		return infra.NewValidationError("Supplied password is too short!")
 	}
 
-	// get connection from pool
-	conn, err := pgPool.Acquire(context.Background())
+	passwordHash, err := HashPassword(password)
 	if err != nil {
-		return errors.New("oops")
+		return fmt.Errorf("failed password hashing caused by: %w", err)
+	}
+
+	// get connection from pool
+	conn, err := pgPool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to aquire connection to database caused by: %w", err)
 	}
 
 	// pretend query db
-	var text string
-	err = conn.QueryRow(context.Background(), "SELECT 'Hello, World!'").Scan(&text)
+	now := time.Now()
+	_, err = conn.Exec(ctx, "INSERT INTO users (username, email, email_verification, password, created_at) VALUES ($1, $2, 'pending', $3, $4)", username, email, passwordHash, now)
 	if err != nil {
-		return errors.New("oops")
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+
+			// uniqueness constraint violation
+			if pgErr.Code == "23505" {
+				if pgErr.ConstraintName == "unique_email" {
+					return infra.NewValidationError("Email is already taken!")
+				}
+
+				if pgErr.ConstraintName == "unique_username" {
+					return infra.NewValidationError("Username is already taken!")
+				}
+			}
+		}
+
+		// catchall
+		return fmt.Errorf("failed inserting user caused by: %w", err)
 	}
 
 	return nil

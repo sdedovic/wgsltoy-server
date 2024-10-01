@@ -13,6 +13,7 @@ import (
 
 type RegisterUser struct {
 	Username string `json:"username"`
+	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
@@ -29,12 +30,11 @@ func UserRegister(pgPool *pgxpool.Pool) http.HandlerFunc {
 			return infra.NewJsonParsingError(err)
 		}
 
-		err = service.UserRegister(ctx, pgPool, registerUser.Username, registerUser.Password)
+		err = service.UserRegister(ctx, pgPool, registerUser.Username, registerUser.Email, registerUser.Password)
 		if err != nil {
 			return err
 		}
 
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(http.StatusCreated)
 		return nil
 	})
