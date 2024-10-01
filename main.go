@@ -1,12 +1,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+//==== General HTTP Stuff ====\\
 
 type ErrorResponse struct {
 	Message string `json:"message"`
@@ -16,7 +22,11 @@ func MakeError(w http.ResponseWriter, message string, code int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(ErrorResponse{message})
+	err := json.NewEncoder(w).Encode(ErrorResponse{message})
+	if err != nil {
+		log.Println("ERROR", err.Error())
+		os.Exit(1)
+	}
 }
 
 //==== User Register ====\\
@@ -26,10 +36,10 @@ type RegisterUser struct {
 	Password string `json:"password"`
 }
 
-// 5 to 15 chars, first one is letter, rest are alphanumeric, -, _, .
-var UsernameRegex = regexp.MustCompile(`^[[:alpha:]][[:alnum:]-_\.]{4,14}`)
+// UsernameRegex 5 to 15 chars, first one is letter, rest are alphanumeric, -, _, .
+var UsernameRegex = regexp.MustCompile(`^[[:alpha:]][[:alnum:]-_.]{4,14}`)
 
-// thesee are banned usernames
+// UsernameBlacklist these are banned usernames
 var UsernameBlacklist = []string{
 	"about", "access", "account", "accounts", "address", "admin", "administration", "advertising", "affiliate", "affiliates",
 	"analytics", "anonymous", "archive", "authentication", "backup", "banner", "banners", "billing", "business", "careers",
@@ -84,7 +94,20 @@ func UserRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// try insert into database
+	// get connection from pool
+	conn, err := pgPool.Acquire(context.Background())
+	if err != nil {
+		MakeError(w, "Oops!", 500)
+		return
+	}
+
+	// pretend query db
+	var text string
+	err = conn.QueryRow(context.Background(), "SELECT 'Hello, World!'").Scan(&text)
+	if err != nil {
+		MakeError(w, "Oops!", 500)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -105,16 +128,36 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	json.NewEncoder(w).Encode(HealthResponse{"ok"})
+	err := json.NewEncoder(w).Encode(HealthResponse{"ok"})
+	if err != nil {
+		log.Println("ERROR", err.Error())
+		os.Exit(1)
+	}
 }
 
 //==== Main ====\\
 
+var pgPool *pgxpool.Pool
+
 func main() {
+	{
+		var err error
+		pgPool, err = pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+		if err != nil {
+			log.Println("ERROR", "Unable to connect to database!", err.Error())
+			os.Exit(1)
+		}
+	}
+	defer pgPool.Close()
+
 	http.HandleFunc("/health", HealthCheck)
 	http.HandleFunc("/user/register", UserRegister)
 
 	log.Println("INFO", "Starting server on 0.0.0.0:8080")
 
-	http.ListenAndServe(":8080", nil)
+	err := http.ListenAndServe(":8080", nil)
+	if err != nil {
+		log.Println("ERROR", err.Error())
+		os.Exit(1)
+	}
 }
