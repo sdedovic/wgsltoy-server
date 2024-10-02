@@ -39,3 +39,30 @@ func UserRegister(pgPool *pgxpool.Pool) http.HandlerFunc {
 		return nil
 	})
 }
+
+type LoginUser struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func UserLogin(pool *pgxpool.Pool) http.HandlerFunc {
+	return CreateHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		if r.Method != "POST" {
+			return NewUnsupportedOperationError("POST")
+		}
+
+		var loginUser LoginUser
+		err := json.NewDecoder(r.Body).Decode(&loginUser)
+		if err != nil {
+			return infra.NewJsonParsingError(err)
+		}
+
+		_, err = service.UserLogin(ctx, pool, loginUser.Username, loginUser.Password)
+		if err != nil {
+			return err
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	})
+}

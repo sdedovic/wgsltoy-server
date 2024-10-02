@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
@@ -88,4 +89,41 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 	}
 
 	return nil
+}
+
+func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, password string) (string, error) {
+	if len(username) == 0 {
+		return "", infra.NewValidationError("Field 'username' is required!")
+	}
+
+	if len(password) == 0 {
+		return "", infra.NewValidationError("Field 'password' is required!")
+	}
+
+	// get connection from pool
+	conn, err := pgPool.Acquire(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to aquire connection to database caused by: %w", err)
+	}
+
+	var userId string
+	var storedPassword string
+	err = conn.QueryRow(ctx, "SELECT user_id, password FROM users WHERE username = $1;", username).Scan(&userId, &storedPassword)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", infra.BadLoginError{}
+		}
+		return "", fmt.Errorf("failed querying user caused by: %w", err)
+	}
+
+	isMatch, err := VerifyPassword(password, storedPassword)
+	if err != nil {
+		return "", fmt.Errorf("failed verifying user password: %w", err)
+	}
+
+	if !isMatch {
+		return "", infra.BadLoginError{}
+	}
+
+	return "FAKE_JWT", nil
 }

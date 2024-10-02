@@ -33,3 +33,15 @@ func (e ValidationError) Error() string {
 func NewValidationError(message string) error {
 	return ValidationError{message}
 }
+
+//==== Bad Login ====\\
+
+type BadLoginError struct{}
+
+func (e BadLoginError) Error() string {
+	return "bad login"
+}
+
+func NewBadLoginError() error {
+	return BadLoginError{}
+}
