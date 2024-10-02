@@ -9,8 +9,6 @@ import (
 	"net/http"
 )
 
-//==== User Register ====\\
-
 type RegisterUser struct {
 	Username string `json:"username"`
 	Email    string `json:"email"`
@@ -57,12 +55,16 @@ func UserLogin(pool *pgxpool.Pool) http.HandlerFunc {
 			return infra.NewJsonParsingError(err)
 		}
 
-		_, err = service.UserLogin(ctx, pool, loginUser.Username, loginUser.Password)
+		jwt, err := service.UserLogin(ctx, pool, loginUser.Username, loginUser.Password)
 		if err != nil {
 			return err
 		}
 
-		w.WriteHeader(http.StatusNoContent)
+		_, err = w.Write([]byte(jwt))
+		if err != nil {
+			return err
+		}
+
 		return nil
 	})
 }

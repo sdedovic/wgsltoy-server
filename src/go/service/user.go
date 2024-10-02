@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"log"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -120,10 +122,19 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 	if err != nil {
 		return "", fmt.Errorf("failed verifying user password: %w", err)
 	}
-
 	if !isMatch {
 		return "", infra.BadLoginError{}
 	}
 
-	return "FAKE_JWT", nil
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub": userId,
+		"exp": time.Now().Add(time.Hour * 72).Unix(),
+		"iat": time.Now().Unix(),
+	})
+	tokenString, err := token.SignedString([]byte(os.Getenv("APP_SECRET")))
+	if err != nil {
+		return "", fmt.Errorf("failed signing token caused by: %w", err)
+	}
+
+	return tokenString, nil
 }
