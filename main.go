@@ -22,6 +22,7 @@ func main() {
 	http.HandleFunc("/health", web.HealthCheck())
 	http.HandleFunc("/user/register", web.UserRegister(pgPool))
 	http.HandleFunc("/user/login", web.UserLogin(pgPool))
+	http.HandleFunc("/user/me", web.UserMe(pgPool))
 
 	log.Println("INFO", "Starting server on 0.0.0.0:8080")
 

@@ -14,7 +14,7 @@ type HealthResponse struct {
 }
 
 func HealthCheck() http.HandlerFunc {
-	return CreateHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return NewUnsupportedOperationError("GET")
 		}

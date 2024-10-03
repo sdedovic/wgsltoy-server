@@ -34,16 +34,18 @@ func WriteErrorResponse(w http.ResponseWriter, in error) {
 	var err error
 
 	var validationError infra.ValidationError
-	var badLoginError infra.BadLoginError
 	var unsupportedOperationError UnsupportedOperationError
 	var jsonParsingError infra.JsonParsingError
 	switch {
 	case errors.As(in, &validationError):
 		w.WriteHeader(http.StatusBadRequest)
 		err = json.NewEncoder(w).Encode(ErrorDto{"VALIDATION_FAILURE", in.Error()})
-	case errors.As(in, &badLoginError):
+	case errors.Is(in, infra.BadLoginError):
 		w.WriteHeader(http.StatusBadRequest)
 		err = json.NewEncoder(w).Encode(ErrorDto{"BAD_LOGIN", "Either 'username' or 'password' are incorrect."})
+	case errors.Is(in, infra.UnauthorizedError):
+		w.WriteHeader(http.StatusUnauthorized)
+		err = json.NewEncoder(w).Encode(ErrorDto{"UNAUTHORIZED", "This resource requires authorization."})
 	case errors.As(in, &jsonParsingError):
 		w.WriteHeader(http.StatusBadRequest)
 		err = json.NewEncoder(w).Encode(ErrorDto{"JSON_PARSING_FAILURE", "Failed to parse JSON payload"})

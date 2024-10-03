@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"log"
-	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -102,7 +100,6 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", infra.NewValidationError("Field 'password' is required!")
 	}
 
-	// get connection from pool
 	conn, err := pgPool.Acquire(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to aquire connection to database caused by: %w", err)
@@ -113,7 +110,7 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 	err = conn.QueryRow(ctx, "SELECT user_id, password FROM users WHERE username = $1;", username).Scan(&userId, &storedPassword)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", infra.BadLoginError{}
+			return "", infra.BadLoginError
 		}
 		return "", fmt.Errorf("failed querying user caused by: %w", err)
 	}
@@ -123,18 +120,40 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", fmt.Errorf("failed verifying user password: %w", err)
 	}
 	if !isMatch {
-		return "", infra.BadLoginError{}
+		return "", infra.BadLoginError
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"sub": userId,
-		"exp": time.Now().Add(time.Hour * 72).Unix(),
-		"iat": time.Now().Unix(),
-	})
-	tokenString, err := token.SignedString([]byte(os.Getenv("APP_SECRET")))
+	token, err := MakeToken(UserInfo(userId))
 	if err != nil {
-		return "", fmt.Errorf("failed signing token caused by: %w", err)
+		return "", err
 	}
 
-	return tokenString, nil
+	return token, nil
+}
+
+type User struct {
+	Id                string    `db:"user_id"`
+	Username          string    `db:"username"`
+	Email             string    `db:"email"`
+	EmailVerification string    `db:"email_verification"`
+	CreatedAt         time.Time `db:"created_at"`
+}
+
+func UserFindOne(ctx context.Context, pgPool *pgxpool.Pool, userId string) (*User, error) {
+	conn, err := pgPool.Acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to aquire connection to database caused by: %w", err)
+	}
+
+	rows, err := conn.Query(ctx, "SELECT user_id, email, email_verification, username, created_at FROM users WHERE user_id = $1 LIMIT 1", userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed querying user caused by: %w", err)
+	}
+
+	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToAddrOfStructByNameLax[User])
+	if err != nil {
+		return nil, fmt.Errorf("failed querying user caused by: %w", err)
+	}
+
+	return user, nil
 }

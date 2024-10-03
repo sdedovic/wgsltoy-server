@@ -3,10 +3,12 @@ package web
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"github.com/sdedovic/wgsltoy-server/src/go/service"
 	"net/http"
+	"time"
 )
 
 type RegisterUser struct {
@@ -16,7 +18,7 @@ type RegisterUser struct {
 }
 
 func UserRegister(pgPool *pgxpool.Pool) http.HandlerFunc {
-	return CreateHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			return NewUnsupportedOperationError("POST")
 		}
@@ -44,7 +46,7 @@ type LoginUser struct {
 }
 
 func UserLogin(pool *pgxpool.Pool) http.HandlerFunc {
-	return CreateHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			return NewUnsupportedOperationError("POST")
 		}
@@ -66,5 +68,38 @@ func UserLogin(pool *pgxpool.Pool) http.HandlerFunc {
 		}
 
 		return nil
+	})
+}
+
+type User struct {
+	Username          string    `json:"username"`
+	Email             string    `json:"email"`
+	EmailVerification string    `json:"emailVerificationStatus"`
+	CreatedAt         time.Time `json:"createdAt"`
+}
+
+func UserMe(pool *pgxpool.Pool) http.HandlerFunc {
+	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		switch r.Method {
+		case "GET":
+			userId := ctx.Value("user")
+			if userId == nil {
+				return errors.New("no user in context")
+			}
+			user, err := service.UserFindOne(ctx, pool, string(userId.(service.UserInfo)))
+			if err != nil {
+				return err
+			}
+
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			err = json.NewEncoder(w).Encode(User{user.Username, user.Email, user.EmailVerification, user.CreatedAt})
+			if err != nil {
+				return infra.NewJsonParsingError(err)
+			}
+			return nil
+
+		default:
+			return NewUnsupportedOperationError("GET")
+		}
 	})
 }
