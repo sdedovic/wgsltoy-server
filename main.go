@@ -25,7 +25,8 @@ func main() {
 	http.HandleFunc("/user/login", web.UserLogin(pgPool))
 	http.HandleFunc("/user/me", web.UserMe(pgPool))
 
-	http.HandleFunc("/shader", web.Shader(pgPool))
+	http.HandleFunc("/shader", web.ShaderCreate(pgPool))
+	http.HandleFunc("/user/me/shader/", web.ShaderListOwn(pgPool))
 
 	log.Println("INFO", "Starting server on 0.0.0.0:8080")
 

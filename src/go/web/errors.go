@@ -50,8 +50,8 @@ func WriteErrorResponse(w http.ResponseWriter, in error) {
 		w.WriteHeader(http.StatusBadRequest)
 		err = json.NewEncoder(w).Encode(ErrorDto{"JSON_PARSING_FAILURE", "Failed to parse JSON payload"})
 	case errors.As(in, &unsupportedOperationError):
-		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Header().Set("Allow", strings.ToUpper(strings.Join(unsupportedOperationError.allow, ", ")))
+		w.WriteHeader(http.StatusMethodNotAllowed)
 		err = json.NewEncoder(w).Encode(ErrorDto{"UNSUPPORTED_OPERATION", in.Error()})
 	default:
 		log.Println("ERROR", in.Error())

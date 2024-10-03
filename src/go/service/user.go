@@ -60,13 +60,8 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 		return fmt.Errorf("failed password hashing caused by: %w", err)
 	}
 
-	conn, err := pgPool.Acquire(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to aquire connection to database caused by: %w", err)
-	}
-
 	now := time.Now()
-	_, err = conn.Exec(ctx, "INSERT INTO users (username, email, email_verification, password, created_at, updated_at) VALUES ($1, $2, 'pending', $3, $4, $4)", username, email, passwordHash, now)
+	_, err = pgPool.Exec(ctx, "INSERT INTO users (username, email, email_verification, password, created_at, updated_at) VALUES ($1, $2, 'pending', $3, $4, $4)", username, email, passwordHash, now)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -99,14 +94,9 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", infra.NewValidationError("Field 'password' is required!")
 	}
 
-	conn, err := pgPool.Acquire(ctx)
-	if err != nil {
-		return "", fmt.Errorf("failed to aquire connection to database caused by: %w", err)
-	}
-
 	var userId string
 	var storedPassword string
-	err = conn.QueryRow(ctx, "SELECT user_id, password FROM users WHERE username = $1;", username).Scan(&userId, &storedPassword)
+	err := pgPool.QueryRow(ctx, "SELECT user_id, password FROM users WHERE username = $1;", username).Scan(&userId, &storedPassword)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", infra.BadLoginError
@@ -140,19 +130,14 @@ type User struct {
 }
 
 func UserFindOne(ctx context.Context, pgPool *pgxpool.Pool, userId string) (*User, error) {
-	conn, err := pgPool.Acquire(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to aquire connection to database caused by: %w", err)
-	}
-
-	rows, err := conn.Query(ctx, "SELECT user_id, email, email_verification, username, created_at, updated_at FROM users WHERE user_id = $1 LIMIT 1", userId)
+	rows, err := pgPool.Query(ctx, "SELECT user_id, email, email_verification, username, created_at, updated_at FROM users WHERE user_id = $1 LIMIT 1", userId)
 	if err != nil {
 		return nil, fmt.Errorf("failed querying user caused by: %w", err)
 	}
 
-	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToAddrOfStructByNameLax[User])
+	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToAddrOfStructByName[User])
 	if err != nil {
-		return nil, fmt.Errorf("failed querying user caused by: %w", err)
+		return nil, fmt.Errorf("failed deserializing database rows caused by: %w", err)
 	}
 
 	return user, nil
