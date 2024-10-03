@@ -9,13 +9,20 @@ All dependencies are managed with Nix flake, [flake.nix](./flake.nix).
 nix develop
 ```
 
-### Local PostgreSQL
+### Database
+#### Running Local
 On systems with `docker`, simply run `./scripts/start-local-pg.sh`.
 
 Then apply migrations with:
 ```bash
-migrate -path db/migrations -database 'postgres://postgres:postgres@localhost:5432/default?sslmode=disable' up
+migrate -path src/sql/migrations -database 'postgres://postgres:postgres@localhost:5432/default?sslmode=disable' up
 ```
 
-## PostgreSQL Migrations
-Migrations are stored in [`db/migrations`](src/sql/migrations/) and are executed manually using [go-migrate](https://github.com/golang-migrate/migrate). 
+### Apply Database Migrations
+Migrations are stored in [`db/migrations`](src/sql/migrations/) and are executed manually using [go-migrate](https://github.com/golang-migrate/migrate).
+
+### Create New Migration
+
+```
+migrate create -ext sql -dir src/sql/migrations -seq <name>
+```

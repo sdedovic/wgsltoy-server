@@ -76,6 +76,7 @@ type User struct {
 	Email             string    `json:"email"`
 	EmailVerification string    `json:"emailVerificationStatus"`
 	CreatedAt         time.Time `json:"createdAt"`
+	UpdatedAt         time.Time `json:"updatedAt"`
 }
 
 func UserMe(pool *pgxpool.Pool) http.HandlerFunc {
@@ -92,7 +93,7 @@ func UserMe(pool *pgxpool.Pool) http.HandlerFunc {
 			}
 
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			err = json.NewEncoder(w).Encode(User{user.Username, user.Email, user.EmailVerification, user.CreatedAt})
+			err = json.NewEncoder(w).Encode(User{user.Username, user.Email, user.EmailVerification, user.CreatedAt, user.UpdatedAt})
 			if err != nil {
 				return infra.NewJsonParsingError(err)
 			}
