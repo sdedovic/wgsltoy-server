@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 // UsernameRegex validates input is 5 to 15 chars, first one is letter, rest are alphanumeric, -, _, .
@@ -50,7 +51,7 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 		}
 	}
 
-	if len(password) < 10 {
+	if utf8.RuneCountInString(password) < 10 {
 		return infra.NewValidationError("Supplied password is too short!")
 	}
 
@@ -59,13 +60,11 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 		return fmt.Errorf("failed password hashing caused by: %w", err)
 	}
 
-	// get connection from pool
 	conn, err := pgPool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to aquire connection to database caused by: %w", err)
 	}
 
-	// pretend query db
 	now := time.Now()
 	_, err = conn.Exec(ctx, "INSERT INTO users (username, email, email_verification, password, created_at, updated_at) VALUES ($1, $2, 'pending', $3, $4, $4)", username, email, passwordHash, now)
 	if err != nil {

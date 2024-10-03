@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS shaders (
     created_by          INTEGER REFERENCES users (user_id)      NOT NULL     ,
     visibility          shader_visibility_type                  NOT NULL     ,
     name                text                                    NOT NULL     ,
-    descriptions        text                                    NOT NULL     ,
+    description         text                                    NOT NULL     ,
     content             text                                    NOT NULL     ,
     tags                text[]                                  NOT NULL     ,
     forked_from         INTEGER REFERENCES shaders (shader_id)

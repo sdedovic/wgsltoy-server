@@ -81,13 +81,16 @@ type User struct {
 
 func UserMe(pool *pgxpool.Pool) http.HandlerFunc {
 	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		user := ctx.Value("user")
+		if user == nil {
+			return errors.New("no user in context")
+		}
+		userId := string(user.(service.UserInfo))
+
 		switch r.Method {
 		case "GET":
-			userId := ctx.Value("user")
-			if userId == nil {
-				return errors.New("no user in context")
-			}
-			user, err := service.UserFindOne(ctx, pool, string(userId.(service.UserInfo)))
+
+			user, err := service.UserFindOne(ctx, pool, userId)
 			if err != nil {
 				return err
 			}
