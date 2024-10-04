@@ -8,6 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"regexp"
+	"strings"
 	"time"
 	"unicode/utf8"
 )
@@ -22,8 +23,9 @@ type CreateShader struct {
 	ForkedFrom  string
 }
 
+var tagRegex = regexp.MustCompile(`^[[:alnum:]]+$`)
 var displayRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS ]+$`)
-var displayMultilineRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS ]+$`)
+var displayMultilineRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS\s]+$`)
 
 const VisibilityPrivate = "private"
 const VisibilityUnlisted = "unlisted"
@@ -56,7 +58,7 @@ func validateShaderDescription(description string) error {
 	if utf8.RuneCountInString(description) > 480 {
 		return infra.NewValidationError("Field 'description' is too long!")
 	}
-	if description != "" && !displayRegex.MatchString(description) {
+	if description != "" && !displayMultilineRegex.MatchString(description) {
 		return infra.NewValidationError("Field 'description' contains invalid characters!")
 	}
 	return nil
@@ -66,7 +68,7 @@ func validateShaderContent(content string) error {
 	if utf8.RuneCountInString(content) > 5250 {
 		return infra.NewValidationError("Field 'content' is too long!")
 	}
-	if content != "" && !displayRegex.MatchString(content) {
+	if content != "" && !displayMultilineRegex.MatchString(content) {
 		return infra.NewValidationError("Field 'content' contains invalid characters!")
 	}
 	return nil
@@ -83,7 +85,7 @@ func validateShaderTags(tags []string) error {
 		if utf8.RuneCountInString(tag) > 10 {
 			return infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is too long!", idx))
 		}
-		if !displayRegex.MatchString(tag) {
+		if !tagRegex.MatchString(tag) {
 			return infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' contains invalid characters!", idx))
 		}
 	}
@@ -161,35 +163,76 @@ type UpdateShader struct {
 }
 
 func ShaderUpdate(ctx context.Context, pgPool *pgxpool.Pool, userId string, shaderId string, shader UpdateShader) error {
-	if err := validateShaderName(shader.Name); err != nil {
-		return err
+	var query strings.Builder
+	args := make([]any, 0, 8)
+
+	query.WriteString("UPDATE shaders SET updated_at = $1 ")
+	args = append(args, time.Now())
+
+	if shader.Name != "" {
+		if err := validateShaderName(shader.Name); err != nil {
+			return err
+		}
+
+		args = append(args, shader.Name)
+		_, err := fmt.Fprintf(&query, ", name = $%d", len(args))
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := validateShaderVisibility(shader.Visibility); err != nil {
-		return err
+	if shader.Visibility != "" {
+		if err := validateShaderVisibility(shader.Visibility); err != nil {
+			return err
+		}
+
+		args = append(args, shader.Visibility)
+		_, err := fmt.Fprintf(&query, ", visibility = $%d", len(args))
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := validateShaderDescription(shader.Description); err != nil {
-		return err
+	if shader.Description != "" {
+		if err := validateShaderDescription(shader.Description); err != nil {
+			return err
+		}
+
+		args = append(args, shader.Description)
+		_, err := fmt.Fprintf(&query, ", description = $%d", len(args))
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := validateShaderContent(shader.Content); err != nil {
-		return err
+	if shader.Content != "" {
+		if err := validateShaderContent(shader.Content); err != nil {
+			return err
+		}
+
+		args = append(args, shader.Content)
+		_, err := fmt.Fprintf(&query, ", content = $%d", len(args))
+		if err != nil {
+			return err
+		}
 	}
 
-	if err := validateShaderTags(shader.Tags); err != nil {
-		return err
-	}
-	tags := shader.Tags
-	if tags == nil {
-		tags = make([]string, 0)
+	if shader.Tags != nil {
+		if err := validateShaderTags(shader.Tags); err != nil {
+			return err
+		}
+
+		args = append(args, shader.Tags)
+		_, err := fmt.Fprintf(&query, ", tags = $%d", len(args))
+		if err != nil {
+			return err
+		}
 	}
 
-	now := time.Now()
-	rows, err := pgPool.Query(ctx, "UPDATE shaders SET updated_at = $1, name = $2, visibility = $3, description = $4, tags = $5, content = $6 WHERE shader_id = $7 AND created_by = $8 RETURNING 1",
-		now, shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content,
-		shaderId, userId,
-	)
+	_, err := fmt.Fprintf(&query, " WHERE shader_id = $%d AND created_by = $%d RETURNING 1", len(args)+1, len(args)+2)
+	args = append(args, shaderId, userId)
+
+	rows, err := pgPool.Query(ctx, query.String(), args...)
 	if err != nil {
 		return fmt.Errorf("failed updating shader caused by: %w", err)
 	}

@@ -69,8 +69,8 @@ type UpdateShader struct {
 
 func ShaderUpdate(pgPool *pgxpool.Pool) http.HandlerFunc {
 	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-		if r.Method != "POST" {
-			return NewUnsupportedOperationError("POST")
+		if r.Method != "PUT" {
+			return NewUnsupportedOperationError("PUT")
 		}
 
 		user := ctx.Value("user")

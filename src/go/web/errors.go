@@ -46,7 +46,7 @@ func WriteErrorResponse(w http.ResponseWriter, in error) {
 	case errors.Is(in, infra.UnauthorizedError):
 		w.WriteHeader(http.StatusUnauthorized)
 		err = json.NewEncoder(w).Encode(ErrorDto{"UNAUTHORIZED", "This resource requires authorization."})
-	case errors.Is(err, infra.NotFoundError):
+	case errors.Is(in, infra.NotFoundError):
 		w.WriteHeader(http.StatusNotFound)
 		err = json.NewEncoder(w).Encode(ErrorDto{"NOT_FOUND", "The requested resource was not found."})
 	case errors.As(in, &jsonParsingError):
