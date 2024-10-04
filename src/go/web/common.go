@@ -17,40 +17,27 @@ func Handler(handler func(context.Context, http.ResponseWriter, *http.Request) e
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := StartContext(r)
 
+		// If Authorization header is present, extract user information and reject with 401 Unauthorized on failure.
+		//  User info is then added to ctx for handlers to determine authorization.
+		authorizationHeader := r.Header.Get("authorization")
+		if authorizationHeader != "" {
+			parts := strings.Split(authorizationHeader, " ")
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				WriteErrorResponse(w, infra.UnauthorizedError)
+				return
+			}
+
+			user, err := service.ParseToken(parts[1])
+			if err != nil {
+				WriteErrorResponse(w, err)
+				return
+			}
+
+			ctx = service.InsertUserInfoIntoContext(ctx, user)
+		}
+
 		err := handler(ctx, w, r)
 
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if err != nil {
-			WriteErrorResponse(w, err)
-		}
-	}
-}
-
-func AuthenticatedHandler(handler func(context.Context, http.ResponseWriter, *http.Request) error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		ctx := StartContext(r)
-
-		authorizationHeader := r.Header.Get("authorization")
-		if authorizationHeader == "" {
-			WriteErrorResponse(w, infra.UnauthorizedError)
-			return
-		}
-
-		parts := strings.Split(authorizationHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			WriteErrorResponse(w, infra.UnauthorizedError)
-			return
-		}
-
-		user, err := service.ParseToken(parts[1])
-		if err != nil {
-			WriteErrorResponse(w, err)
-			return
-		}
-
-		ctx = context.WithValue(ctx, "user", user)
-
-		err = handler(ctx, w, r)
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		if err != nil {
 			WriteErrorResponse(w, err)

@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"github.com/sdedovic/wgsltoy-server/src/go/service"
@@ -80,17 +79,11 @@ type User struct {
 }
 
 func UserMe(pool *pgxpool.Pool) http.HandlerFunc {
-	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-		user := ctx.Value("user")
-		if user == nil {
-			return errors.New("no user in context")
-		}
-		userId := string(user.(service.UserInfo))
-
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		switch r.Method {
 		case "GET":
 
-			user, err := service.UserFindOne(ctx, pool, userId)
+			user, err := service.UserGetCurrent(ctx, pool)
 			if err != nil {
 				return err
 			}

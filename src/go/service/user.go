@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
+	"github.com/sdedovic/wgsltoy-server/src/go/repository"
 	"log"
 	"regexp"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -60,26 +57,9 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 		return fmt.Errorf("failed password hashing caused by: %w", err)
 	}
 
-	now := time.Now()
-	_, err = pgPool.Exec(ctx, "INSERT INTO users (username, email, email_verification, password, created_at, updated_at) VALUES ($1, $2, 'pending', $3, $4, $4)", username, email, passwordHash, now)
+	_, err = repository.UserInsert(ctx, pgPool, username, email, passwordHash)
 	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-
-			// uniqueness constraint violation
-			if pgErr.Code == "23505" {
-				if pgErr.ConstraintName == "unique_email" {
-					return infra.NewValidationError("Email is already taken!")
-				}
-
-				if pgErr.ConstraintName == "unique_username" {
-					return infra.NewValidationError("Username is already taken!")
-				}
-			}
-		}
-
-		// catchall
-		return fmt.Errorf("failed inserting user caused by: %w", err)
+		return err
 	}
 
 	return nil
@@ -94,15 +74,7 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", infra.NewValidationError("Field 'password' is required!")
 	}
 
-	var userId string
-	var storedPassword string
-	err := pgPool.QueryRow(ctx, "SELECT user_id, password FROM users WHERE username = $1;", username).Scan(&userId, &storedPassword)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return "", infra.BadLoginError
-		}
-		return "", fmt.Errorf("failed querying user caused by: %w", err)
-	}
+	userId, storedPassword, err := repository.UserGetUserIdPasswordByUsername(ctx, pgPool, username)
 
 	isMatch, err := VerifyPassword(password, storedPassword)
 	if err != nil {
@@ -112,7 +84,7 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", infra.BadLoginError
 	}
 
-	token, err := MakeToken(UserInfo(userId))
+	token, err := MakeToken(UserInfo{userId})
 	if err != nil {
 		return "", err
 	}
@@ -120,24 +92,15 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 	return token, nil
 }
 
-type User struct {
-	Id                string    `db:"user_id"`
-	Username          string    `db:"username"`
-	Email             string    `db:"email"`
-	EmailVerification string    `db:"email_verification"`
-	CreatedAt         time.Time `db:"created_at"`
-	UpdatedAt         time.Time `db:"updated_at"`
-}
-
-func UserFindOne(ctx context.Context, pgPool *pgxpool.Pool, userId string) (*User, error) {
-	rows, err := pgPool.Query(ctx, "SELECT user_id, email, email_verification, username, created_at, updated_at FROM users WHERE user_id = $1 LIMIT 1", userId)
-	if err != nil {
-		return nil, fmt.Errorf("failed querying user caused by: %w", err)
+func UserGetCurrent(ctx context.Context, pgPool *pgxpool.Pool) (*repository.User, error) {
+	userInfo := ExtractUserInfoFromContext(ctx)
+	if userInfo == nil {
+		return nil, infra.UnauthorizedError
 	}
 
-	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToAddrOfStructByName[User])
+	user, err := repository.UserFindOneById(ctx, pgPool, userInfo.UserID())
 	if err != nil {
-		return nil, fmt.Errorf("failed deserializing database rows caused by: %w", err)
+		return nil, err
 	}
 
 	return user, nil

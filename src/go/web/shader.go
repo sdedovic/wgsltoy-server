@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
@@ -22,16 +21,10 @@ type CreateShader struct {
 }
 
 func ShaderCreate(pgPool *pgxpool.Pool) http.HandlerFunc {
-	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			return NewUnsupportedOperationError("POST")
 		}
-
-		user := ctx.Value("user")
-		if user == nil {
-			return errors.New("no user in context")
-		}
-		userId := string(user.(service.UserInfo))
 
 		var createShader *CreateShader
 		err := json.NewDecoder(r.Body).Decode(&createShader)
@@ -45,7 +38,6 @@ func ShaderCreate(pgPool *pgxpool.Pool) http.HandlerFunc {
 			Description: createShader.Description,
 			Content:     createShader.Content,
 			Tags:        createShader.Tags,
-			CreatedBy:   userId,
 			ForkedFrom:  createShader.ForkedFrom,
 		})
 		if err != nil {
@@ -68,16 +60,10 @@ type UpdateShader struct {
 }
 
 func ShaderUpdate(pgPool *pgxpool.Pool) http.HandlerFunc {
-	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "PUT" {
 			return NewUnsupportedOperationError("PUT")
 		}
-
-		user := ctx.Value("user")
-		if user == nil {
-			return errors.New("no user in context")
-		}
-		userId := string(user.(service.UserInfo))
 
 		shaderId := r.PathValue("id")
 		if shaderId == "" {
@@ -90,7 +76,7 @@ func ShaderUpdate(pgPool *pgxpool.Pool) http.HandlerFunc {
 			return infra.NewJsonParsingError(err)
 		}
 
-		err = service.ShaderUpdate(ctx, pgPool, userId, shaderId, service.UpdateShader{
+		err = service.ShaderUpdate(ctx, pgPool, shaderId, service.UpdateShader{
 			Name:        updateShader.Name,
 			Visibility:  updateShader.Visibility,
 			Description: updateShader.Description,
@@ -106,7 +92,7 @@ func ShaderUpdate(pgPool *pgxpool.Pool) http.HandlerFunc {
 	})
 }
 
-type Shader struct {
+type ShaderInfo struct {
 	Id        string    `json:"id"`
 	Location  string    `json:"location"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -118,27 +104,20 @@ type Shader struct {
 	ForkedFrom         string   `json:"forkedFrom,omitempty"`
 	ForkedFromLocation string   `json:"forkedFromLocation,omitempty"`
 	Tags               []string `json:"tags"`
-	Content            string   `json:"content"`
 }
 
-func ShaderListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {
-	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func ShaderInfoListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
 			return NewUnsupportedOperationError("GET")
 		}
 
-		user := ctx.Value("user")
-		if user == nil {
-			return errors.New("no user in context")
-		}
-		userId := string(user.(service.UserInfo))
-
-		shaders, err := service.ShaderListByUser(ctx, pgPool, userId)
+		shaders, err := service.ShaderInfoListCurrentUser(ctx, pgPool)
 		if err != nil {
 			return err
 		}
 
-		output := make([]Shader, len(shaders))
+		output := make([]ShaderInfo, len(shaders))
 		for i, shader := range shaders {
 			location := fmt.Sprintf("/shader/%s", shader.Id)
 
@@ -147,7 +126,7 @@ func ShaderListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {
 				forkedFromLocation = fmt.Sprintf("/shader/%s", shader.ForkedFrom)
 			}
 
-			output[i] = Shader{
+			output[i] = ShaderInfo{
 				shader.Name,
 				location,
 				shader.CreatedAt,
@@ -158,7 +137,6 @@ func ShaderListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {
 				shader.ForkedFrom,
 				forkedFromLocation,
 				shader.Tags,
-				shader.Content,
 			}
 		}
 

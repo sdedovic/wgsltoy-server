@@ -1,4 +1,4 @@
-package service
+package infra
 
 import (
 	"encoding/base64"

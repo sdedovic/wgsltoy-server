@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
@@ -9,14 +10,35 @@ import (
 )
 
 const issuer = "wgsltoy.com"
+const ContextKey = "user"
 
 var method = jwt.SigningMethodHS256
 
-type UserInfo string
+type UserInfo struct {
+	id string
+}
+
+func (userInfo *UserInfo) UserID() string {
+	return userInfo.id
+}
+
+func ExtractUserInfoFromContext(ctx context.Context) *UserInfo {
+	value := ctx.Value(ContextKey)
+	switch v := value.(type) {
+	case *UserInfo:
+		return v
+	default:
+		return nil
+	}
+}
+
+func InsertUserInfoIntoContext(ctx context.Context, userInfo *UserInfo) context.Context {
+	return context.WithValue(ctx, ContextKey, userInfo)
+}
 
 func MakeToken(user UserInfo) (string, error) {
 	token := jwt.NewWithClaims(method, jwt.MapClaims{
-		"sub": user,
+		"sub": user.UserID(),
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
 		"iat": time.Now().Unix(),
 		"iss": issuer,
@@ -29,7 +51,7 @@ func MakeToken(user UserInfo) (string, error) {
 	return tokenString, nil
 }
 
-func ParseToken(tokenString string) (UserInfo, error) {
+func ParseToken(tokenString string) (*UserInfo, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(os.Getenv("APP_SECRET")), nil
 	},
@@ -39,13 +61,13 @@ func ParseToken(tokenString string) (UserInfo, error) {
 		jwt.WithValidMethods([]string{method.Name}))
 
 	if err != nil || token == nil || !token.Valid {
-		return "", infra.UnauthorizedError
+		return nil, infra.UnauthorizedError
 	}
 
 	subject, err := token.Claims.GetSubject()
 	if err != nil {
-		return "", fmt.Errorf("failed extracting subject from token: %w", err)
+		return nil, fmt.Errorf("failed extracting subject from token caused by: %w", err)
 	}
 
-	return UserInfo(subject), nil
+	return &UserInfo{subject}, nil
 }
