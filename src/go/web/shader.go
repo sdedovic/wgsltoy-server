@@ -16,9 +16,9 @@ type CreateShader struct {
 	Name        string   `json:"name"`
 	Visibility  string   `json:"visibility"`
 	Description string   `json:"description"`
-	Content     string   `json:"content"`
-	Tags        []string `json:"tags"`
 	ForkedFrom  string   `json:"forkedFrom"`
+	Tags        []string `json:"tags"`
+	Content     string   `json:"content"`
 }
 
 func ShaderCreate(pgPool *pgxpool.Pool) http.HandlerFunc {
@@ -59,6 +59,53 @@ func ShaderCreate(pgPool *pgxpool.Pool) http.HandlerFunc {
 	})
 }
 
+type UpdateShader struct {
+	Name        string   `json:"name"`
+	Visibility  string   `json:"visibility"`
+	Description string   `json:"description"`
+	Tags        []string `json:"tags"`
+	Content     string   `json:"content"`
+}
+
+func ShaderUpdate(pgPool *pgxpool.Pool) http.HandlerFunc {
+	return AuthenticatedHandler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+		if r.Method != "POST" {
+			return NewUnsupportedOperationError("POST")
+		}
+
+		user := ctx.Value("user")
+		if user == nil {
+			return errors.New("no user in context")
+		}
+		userId := string(user.(service.UserInfo))
+
+		shaderId := r.PathValue("id")
+		if shaderId == "" {
+			return infra.NotFoundError
+		}
+
+		var updateShader *UpdateShader
+		err := json.NewDecoder(r.Body).Decode(&updateShader)
+		if err != nil {
+			return infra.NewJsonParsingError(err)
+		}
+
+		err = service.ShaderUpdate(ctx, pgPool, userId, shaderId, service.UpdateShader{
+			Name:        updateShader.Name,
+			Visibility:  updateShader.Visibility,
+			Description: updateShader.Description,
+			Tags:        updateShader.Tags,
+			Content:     updateShader.Content,
+		})
+		if err != nil {
+			return err
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	})
+}
+
 type Shader struct {
 	Id        string    `json:"id"`
 	Location  string    `json:"location"`
@@ -71,8 +118,7 @@ type Shader struct {
 	ForkedFrom         string   `json:"forkedFrom,omitempty"`
 	ForkedFromLocation string   `json:"forkedFromLocation,omitempty"`
 	Tags               []string `json:"tags"`
-
-	Content string `json:"content"`
+	Content            string   `json:"content"`
 }
 
 func ShaderListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {

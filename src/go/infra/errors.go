@@ -46,3 +46,6 @@ var BadLoginError = errors.New("bad login")
 
 // UnauthorizedError occurs when a user lacks access while attempting to perform an operation
 var UnauthorizedError = errors.New("unauthorized")
+
+// NotFoundError occurs when a resource is not found
+var NotFoundError = errors.New("not found")

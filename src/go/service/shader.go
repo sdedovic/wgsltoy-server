@@ -22,76 +22,109 @@ type CreateShader struct {
 	ForkedFrom  string
 }
 
-var displayTextRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS ]+$`)
+var displayRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS ]+$`)
+var displayMultilineRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS ]+$`)
 
 const VisibilityPrivate = "private"
 const VisibilityUnlisted = "unlisted"
 const VisibilityPublic = "public"
+
+func validateShaderName(name string) error {
+	if name == "" {
+		return infra.NewValidationError("Field 'name' is required!")
+	}
+	if utf8.RuneCountInString(name) > 160 {
+		return infra.NewValidationError("Field 'name' is too long!")
+	}
+	if !displayRegex.MatchString(name) {
+		return infra.NewValidationError("Field 'name' contains invalid characters!")
+	}
+	return nil
+}
+
+func validateShaderVisibility(visibility string) error {
+	if visibility == "" {
+		return infra.NewValidationError("Field 'visibility' is required!")
+	}
+	if visibility != VisibilityUnlisted && visibility != VisibilityPrivate && visibility != VisibilityPublic {
+		return infra.NewValidationError("Field 'visibility' must be one of 'private', 'unlisted' or 'public'!")
+	}
+	return nil
+}
+
+func validateShaderDescription(description string) error {
+	if utf8.RuneCountInString(description) > 480 {
+		return infra.NewValidationError("Field 'description' is too long!")
+	}
+	if description != "" && !displayRegex.MatchString(description) {
+		return infra.NewValidationError("Field 'description' contains invalid characters!")
+	}
+	return nil
+}
+
+func validateShaderContent(content string) error {
+	if utf8.RuneCountInString(content) > 5250 {
+		return infra.NewValidationError("Field 'content' is too long!")
+	}
+	if content != "" && !displayRegex.MatchString(content) {
+		return infra.NewValidationError("Field 'content' contains invalid characters!")
+	}
+	return nil
+}
+
+func validateShaderTags(tags []string) error {
+	for idx, tag := range tags {
+		if tag == "" {
+			return infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is empty!", idx))
+		}
+		if utf8.RuneCountInString(tag) < 3 {
+			return infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is too short!", idx))
+		}
+		if utf8.RuneCountInString(tag) > 10 {
+			return infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is too long!", idx))
+		}
+		if !displayRegex.MatchString(tag) {
+			return infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' contains invalid characters!", idx))
+		}
+	}
+	return nil
+}
 
 func ShaderCreate(ctx context.Context, pgPool *pgxpool.Pool, shader *CreateShader) (string, error) {
 	if shader == nil {
 		return "", errors.New("shader is nil")
 	}
 
-	if shader.Name == "" {
-		return "", infra.NewValidationError("Field 'name' is required!")
-	}
-	if utf8.RuneCountInString(shader.Name) > 160 {
-		return "", infra.NewValidationError("Field 'name' is too long!")
-	}
-	if !displayTextRegex.MatchString(shader.Name) {
-		return "", infra.NewValidationError("Field 'name' contains invalid characters!")
+	if err := validateShaderName(shader.Name); err != nil {
+		return "", err
 	}
 
-	if shader.Visibility == "" {
-		return "", infra.NewValidationError("Field 'visibility' is required!")
-	}
-	if shader.Visibility != VisibilityUnlisted && shader.Visibility != VisibilityPrivate && shader.Visibility != VisibilityPublic {
-		return "", infra.NewValidationError("Field 'visibility' must be one of 'private', 'unlisted' or 'public'!")
+	if err := validateShaderVisibility(shader.Visibility); err != nil {
+		return "", err
 	}
 
-	if utf8.RuneCountInString(shader.Description) > 480 {
-		return "", infra.NewValidationError("Field 'description' is too long!")
-	}
-	if shader.Description != "" && !displayTextRegex.MatchString(shader.Name) {
-		return "", infra.NewValidationError("Field 'description' contains invalid characters!")
+	if err := validateShaderDescription(shader.Description); err != nil {
+		return "", err
 	}
 
-	if utf8.RuneCountInString(shader.Content) > 5250 {
-		return "", infra.NewValidationError("Field 'content' is too long!")
-	}
-	if shader.Content != "" && !displayTextRegex.MatchString(shader.Content) {
-		return "", infra.NewValidationError("Field 'content' contains invalid characters!")
+	if err := validateShaderContent(shader.Content); err != nil {
+		return "", err
 	}
 
-	for idx, tag := range shader.Tags {
-		if tag == "" {
-			return "", infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is empty!", idx))
-		}
-		if utf8.RuneCountInString(tag) < 3 {
-			return "", infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is too short!", idx))
-		}
-		if utf8.RuneCountInString(tag) > 10 {
-			return "", infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' is too long!", idx))
-		}
-		if !displayTextRegex.MatchString(tag) {
-			return "", infra.NewValidationError(fmt.Sprintf("Field 'tags[%d]' contains invalid characters!", idx))
-		}
+	if err := validateShaderTags(shader.Tags); err != nil {
+		return "", err
 	}
 	tags := shader.Tags
 	if tags == nil {
 		tags = make([]string, 0)
 	}
 
-	if utf8.RuneCountInString(shader.ForkedFrom) > 50 {
-		return "", infra.NewValidationError("Field 'forkedFrom' is too long!")
-	}
-	if shader.ForkedFrom != "" && !displayTextRegex.MatchString(shader.ForkedFrom) {
-		return "", infra.NewValidationError("Field 'forkedFrom' contains invalid characters!")
+	if shader.ForkedFrom != "" && !ValidateGUID(shader.ForkedFrom) {
+		return "", infra.NewValidationError("Field 'forkedFrom' is invalid!")
 	}
 	var forkedFrom *string
-	if shader.ForkedFrom == "" {
-		forkedFrom = nil
+	if shader.ForkedFrom != "" {
+		forkedFrom = &shader.ForkedFrom
 	}
 
 	now := time.Now()
@@ -117,6 +150,58 @@ type Shader struct {
 	Tags        []string `db:"tags"`
 
 	Content string `db:"content"`
+}
+
+type UpdateShader struct {
+	Name        string
+	Visibility  string
+	Description string
+	Tags        []string
+	Content     string
+}
+
+func ShaderUpdate(ctx context.Context, pgPool *pgxpool.Pool, userId string, shaderId string, shader UpdateShader) error {
+	if err := validateShaderName(shader.Name); err != nil {
+		return err
+	}
+
+	if err := validateShaderVisibility(shader.Visibility); err != nil {
+		return err
+	}
+
+	if err := validateShaderDescription(shader.Description); err != nil {
+		return err
+	}
+
+	if err := validateShaderContent(shader.Content); err != nil {
+		return err
+	}
+
+	if err := validateShaderTags(shader.Tags); err != nil {
+		return err
+	}
+	tags := shader.Tags
+	if tags == nil {
+		tags = make([]string, 0)
+	}
+
+	now := time.Now()
+	rows, err := pgPool.Query(ctx, "UPDATE shaders SET updated_at = $1, name = $2, visibility = $3, description = $4, tags = $5, content = $6 WHERE shader_id = $7 AND created_by = $8 RETURNING 1",
+		now, shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content,
+		shaderId, userId,
+	)
+	if err != nil {
+		return fmt.Errorf("failed updating shader caused by: %w", err)
+	}
+
+	if _, err = pgx.CollectExactlyOneRow(rows, pgx.RowTo[int]); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return infra.NotFoundError
+		}
+		return fmt.Errorf("failed updating shader caused by: %w", err)
+	}
+
+	return nil
 }
 
 func ShaderListByUser(ctx context.Context, pgPool *pgxpool.Pool, userId string) ([]*Shader, error) {

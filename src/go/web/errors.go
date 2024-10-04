@@ -16,7 +16,7 @@ type UnsupportedOperationError struct {
 }
 
 func (e UnsupportedOperationError) Error() string {
-	return fmt.Sprintf("Supported operations are: [%s]", strings.ToUpper(strings.Join(e.allow, ", ")))
+	return fmt.Sprintf("Supported operations are: [%s].", strings.ToUpper(strings.Join(e.allow, ", ")))
 }
 
 func NewUnsupportedOperationError(allow ...string) error {
@@ -46,9 +46,12 @@ func WriteErrorResponse(w http.ResponseWriter, in error) {
 	case errors.Is(in, infra.UnauthorizedError):
 		w.WriteHeader(http.StatusUnauthorized)
 		err = json.NewEncoder(w).Encode(ErrorDto{"UNAUTHORIZED", "This resource requires authorization."})
+	case errors.Is(err, infra.NotFoundError):
+		w.WriteHeader(http.StatusNotFound)
+		err = json.NewEncoder(w).Encode(ErrorDto{"NOT_FOUND", "The requested resource was not found."})
 	case errors.As(in, &jsonParsingError):
 		w.WriteHeader(http.StatusBadRequest)
-		err = json.NewEncoder(w).Encode(ErrorDto{"JSON_PARSING_FAILURE", "Failed to parse JSON payload"})
+		err = json.NewEncoder(w).Encode(ErrorDto{"JSON_PARSING_FAILURE", "Failed to parse JSON payload."})
 	case errors.As(in, &unsupportedOperationError):
 		w.Header().Set("Allow", strings.ToUpper(strings.Join(unsupportedOperationError.allow, ", ")))
 		w.WriteHeader(http.StatusMethodNotAllowed)
