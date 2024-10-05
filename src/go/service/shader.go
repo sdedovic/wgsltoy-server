@@ -192,11 +192,11 @@ func ShaderUpdate(ctx context.Context, pgPool *pgxpool.Pool, shaderId string, sh
 	}
 
 	err := repository.ShaderUpdateByCreatedByAndShaderId(ctx, pgPool, userInfo.UserID(), shaderId, &repository.ShaderUpdateCommand{
-		shader.Name,
-		shader.Description,
-		shader.Visibility,
-		shader.Content,
-		shader.Tags,
+		Name:        shader.Name,
+		Description: shader.Description,
+		Visibility:  shader.Visibility,
+		Content:     shader.Content,
+		Tags:        shader.Tags,
 	})
 	if err != nil {
 		return err
@@ -246,13 +246,43 @@ func ShaderInfoListCurrentUser(ctx context.Context, pgPool *pgxpool.Pool) ([]*Sh
 	return shaders, nil
 }
 
-func ShaderGetOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId string) (*ShaderInfo, error) {
+type Shader struct {
+	Id        string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	Name        string
+	Visibility  string
+	Description string
+	ForkedFrom  string
+	Tags        []string
+	Content     string
+}
+
+func ShaderGetOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId string) (*Shader, error) {
 	userInfo := ExtractUserInfoFromContext(ctx)
 
-	var userId = ""
-	if userInfo != nil {
-		userId = userInfo.UserID()
+	var shader *repository.ShaderDTO
+	var err error
+	if userInfo == nil {
+		shader, err = repository.ShaderFindOneById(ctx, pgPool, shaderId)
+	} else {
+		shader, err = repository.ShaderFindOneByIdAndCreatedBy(ctx, pgPool, shaderId, userInfo.UserID())
 	}
 
-	shader, err := repository.ShaderFindOneByIdAndOptionalUserId(ctx, pgPool, shaderId, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Shader{
+		shader.Id,
+		shader.CreatedAt,
+		shader.UpdatedAt,
+		shader.Name,
+		shader.Visibility,
+		shader.Description,
+		shader.ForkedFrom,
+		shader.Tags,
+		shader.Content,
+	}, nil
 }

@@ -60,8 +60,18 @@ type ShaderUpdateRequestDTO struct {
 }
 
 type ShaderDTO struct {
-	ShaderInfoDTO
-	Content string `json:"content"`
+	Id        string    `json:"id"`
+	Location  string    `json:"location"`
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+
+	Name               string   `json:"name"`
+	Visibility         string   `json:"visibility"`
+	Description        string   `json:"description"`
+	ForkedFrom         string   `json:"forkedFrom,omitempty"`
+	ForkedFromLocation string   `json:"forkedFromLocation,omitempty"`
+	Tags               []string `json:"tags"`
+	Content            string   `json:"content"`
 }
 
 func ShaderById(pgPool *pgxpool.Pool) http.HandlerFunc {
@@ -78,6 +88,28 @@ func ShaderById(pgPool *pgxpool.Pool) http.HandlerFunc {
 				return err
 			}
 
+			forkedFromLocation := ""
+			if shader.ForkedFrom != "" {
+				forkedFromLocation = fmt.Sprintf("/shader/%s", shader.ForkedFrom)
+			}
+
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			err = json.NewEncoder(w).Encode(ShaderDTO{
+				shader.Id,
+				fmt.Sprintf("/shader/%s", shader.Id),
+				shader.CreatedAt,
+				shader.UpdatedAt,
+				shader.Name,
+				shader.Visibility,
+				shader.Description,
+				shader.ForkedFrom,
+				forkedFromLocation,
+				shader.Tags,
+				shader.Content,
+			})
+			if err != nil {
+				return infra.NewJsonParsingError(err)
+			}
 			return nil
 		case "PUT":
 			var updateShader *ShaderUpdateRequestDTO

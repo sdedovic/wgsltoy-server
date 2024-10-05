@@ -34,6 +34,7 @@ type zeronullShaderInfoDTO struct {
 	Id        string    `db:"shader_id"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
+	CreatedBy string    `db:"created_by"`
 
 	Name        string        `db:"name"`
 	Visibility  string        `db:"visibility"`
@@ -46,6 +47,7 @@ type ShaderInfoDTO struct {
 	Id        string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	CreatedBy string
 
 	Name        string
 	Visibility  string
@@ -56,12 +58,12 @@ type ShaderInfoDTO struct {
 
 type zeronullShaderDTO struct {
 	zeronullShaderInfoDTO
-	content string `db:"content"`
+	Content string `db:"content"`
 }
 
 type ShaderDTO struct {
 	ShaderInfoDTO
-	content string
+	Content string
 }
 
 func ShaderInsertOne(ctx context.Context, pgPool *pgxpool.Pool, shader *ShaderInsertCommand) (string, error) {
@@ -106,15 +108,15 @@ func ShaderUpdateByCreatedByAndShaderId(ctx context.Context, pgPool *pgxpool.Poo
 	}
 
 	if shader.Visibility != "" {
-		builder.Set("visibility", shader.Visibility)
+		builder = builder.Set("visibility", shader.Visibility)
 	}
 
 	if shader.Content != "" {
-		builder.Set("content", shader.Content)
+		builder = builder.Set("content", shader.Content)
 	}
 
 	if shader.Tags != nil {
-		builder.Set("tags", shader.Tags)
+		builder = builder.Set("tags", shader.Tags)
 	}
 
 	sql, args, err := builder.
@@ -139,7 +141,7 @@ func ShaderUpdateByCreatedByAndShaderId(ctx context.Context, pgPool *pgxpool.Poo
 
 func ShaderInfoFindAllByCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, createdBy string) ([]*ShaderInfoDTO, error) {
 	sql, args, err := psql.
-		Select("shader_id", "created_at", "updated_at", "name", "visibility", "description", "forked_from", "tags").
+		Select("shader_id", "created_at", "updated_at", "created_by", "name", "visibility", "description", "forked_from", "tags").
 		From("shaders").
 		Where("created_by = ?", createdBy).
 		OrderBy("updated_at DESC").
@@ -165,6 +167,7 @@ func ShaderInfoFindAllByCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, cre
 			dto.Id,
 			dto.CreatedAt,
 			dto.UpdatedAt,
+			dto.CreatedBy,
 			dto.Name,
 			dto.Visibility,
 			dto.Description,
@@ -181,7 +184,7 @@ const visibilityUnlisted = "unlisted"
 
 func ShaderFindOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId string) (*ShaderDTO, error) {
 	sql, args, err := psql.
-		Select("created_at", "updated_at", "created_by", "visibility", "name", "description", "content", "tags", "forked_from", "shader_id", "content").
+		Select("shader_id", "created_at", "updated_at", "created_by", "name", "visibility", "description", "forked_from", "tags", "content").
 		From("shaders").
 		Where(squirrel.Eq{
 			"shader_id":  shaderId,
@@ -210,19 +213,20 @@ func ShaderFindOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId strin
 			shader.Id,
 			shader.CreatedAt,
 			shader.UpdatedAt,
+			shader.CreatedBy,
 			shader.Name,
 			shader.Visibility,
 			shader.Description,
 			string(shader.ForkedFrom),
 			shader.Tags,
 		},
-		shader.content,
+		shader.Content,
 	}, nil
 }
 
 func ShaderFindOneByIdAndCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, shaderId string, createdBy string) (*ShaderDTO, error) {
 	sql, args, err := psql.
-		Select("created_at", "updated_at", "created_by", "visibility", "name", "description", "content", "tags", "forked_from", "shader_id", "content").
+		Select("*").
 		From("shaders").
 		Where(squirrel.And{
 			squirrel.Eq{"shader_id": shaderId},
@@ -254,12 +258,13 @@ func ShaderFindOneByIdAndCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, sh
 			shader.Id,
 			shader.CreatedAt,
 			shader.UpdatedAt,
+			shader.CreatedBy,
 			shader.Name,
 			shader.Visibility,
 			shader.Description,
 			string(shader.ForkedFrom),
 			shader.Tags,
 		},
-		shader.content,
+		shader.Content,
 	}, nil
 }
