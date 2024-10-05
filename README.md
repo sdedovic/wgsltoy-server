@@ -2,6 +2,14 @@
 
 [https://wgsltoy.com](https://wgsltoy.com)
 
+## Operating
+### Configuration
+#### Environment Variables
+| name           | example                                                               | description                                                  |
+|----------------|-----------------------------------------------------------------------|--------------------------------------------------------------|
+| `DATABASE_URL` | `postgres://postgres:postgres@localhost:5432/default?sslmode=disable` | Postgres connection URL, for storing application data, state |
+| `APP_SECRET`   | `test`                                                                | Secret phrase used for signing JWTs for user authentication  |
+
 ## Developing
 All dependencies are managed with Nix flake, [flake.nix](./flake.nix).
 

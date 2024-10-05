@@ -3,9 +3,9 @@ package service
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sdedovic/wgsltoy-server/src/go/db"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
-	"github.com/sdedovic/wgsltoy-server/src/go/repository"
+	"github.com/sdedovic/wgsltoy-server/src/go/models"
 	"log"
 	"regexp"
 	"strings"
@@ -25,7 +25,7 @@ var usernameBlacklist = []string{
 	"website", "websites", "webmaster", "webmail", "yourname", "yourusername", "yoursite", "yourdomain",
 }
 
-func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, email string, password string) error {
+func UserRegister(ctx context.Context, username string, email string, password string) error {
 	if len(username) == 0 {
 		return infra.NewValidationError("Field 'username' is required!")
 	}
@@ -52,12 +52,12 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 		return infra.NewValidationError("Supplied password is too short!")
 	}
 
-	passwordHash, err := HashPassword(password)
+	hashedPassword, err := HashPassword(password)
 	if err != nil {
 		return fmt.Errorf("failed password hashing caused by: %w", err)
 	}
 
-	_, err = repository.UserInsert(ctx, pgPool, username, email, passwordHash)
+	_, err = db.UserCreate(username, email, hashedPassword)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func UserRegister(ctx context.Context, pgPool *pgxpool.Pool, username string, em
 	return nil
 }
 
-func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, password string) (string, error) {
+func UserLoginGenerateToken(ctx context.Context, username string, password string) (string, error) {
 	if len(username) == 0 {
 		return "", infra.NewValidationError("Field 'username' is required!")
 	}
@@ -74,9 +74,12 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", infra.NewValidationError("Field 'password' is required!")
 	}
 
-	userId, storedPassword, err := repository.UserGetUserIdPasswordByUsername(ctx, pgPool, username)
+	user, err := db.UserGetByUsername(username)
+	if err != nil {
+		return "", err
+	}
 
-	isMatch, err := VerifyPassword(password, storedPassword)
+	isMatch, err := VerifyPassword(password, user.Password)
 	if err != nil {
 		return "", fmt.Errorf("failed verifying user password: %w", err)
 	}
@@ -84,7 +87,7 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 		return "", infra.BadLoginError
 	}
 
-	token, err := MakeToken(UserInfo{userId})
+	token, err := MakeToken(UserInfo{user.Id})
 	if err != nil {
 		return "", err
 	}
@@ -92,15 +95,15 @@ func UserLogin(ctx context.Context, pgPool *pgxpool.Pool, username string, passw
 	return token, nil
 }
 
-func UserGetCurrent(ctx context.Context, pgPool *pgxpool.Pool) (*repository.User, error) {
+func UserGetCurrent(ctx context.Context) (models.User, error) {
 	userInfo := ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
-		return nil, infra.UnauthorizedError
+		return models.User{}, infra.UnauthorizedError
 	}
 
-	user, err := repository.UserFindOneById(ctx, pgPool, userInfo.UserID())
+	user, err := db.UserGetById(userInfo.Id)
 	if err != nil {
-		return nil, err
+		return models.User{}, err
 	}
 
 	return user, nil

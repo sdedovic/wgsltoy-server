@@ -15,11 +15,7 @@ const ContextKey = "user"
 var method = jwt.SigningMethodHS256
 
 type UserInfo struct {
-	id string
-}
-
-func (userInfo *UserInfo) UserID() string {
-	return userInfo.id
+	Id string
 }
 
 func ExtractUserInfoFromContext(ctx context.Context) *UserInfo {
@@ -38,7 +34,7 @@ func InsertUserInfoIntoContext(ctx context.Context, userInfo *UserInfo) context.
 
 func MakeToken(user UserInfo) (string, error) {
 	token := jwt.NewWithClaims(method, jwt.MapClaims{
-		"sub": user.UserID(),
+		"sub": user.Id,
 		"exp": time.Now().Add(time.Hour * 72).Unix(),
 		"iat": time.Now().Unix(),
 		"iss": issuer,

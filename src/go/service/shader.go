@@ -2,11 +2,10 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sdedovic/wgsltoy-server/src/go/db"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
-	"github.com/sdedovic/wgsltoy-server/src/go/repository"
+	"github.com/sdedovic/wgsltoy-server/src/go/models"
 	"regexp"
 	"strings"
 	"time"
@@ -23,7 +22,7 @@ const VisibilityPublic = "public"
 
 func validateShaderName(name string) error {
 	if name == "" {
-		return infra.NewValidationError("Field 'name' is required!")
+		return infra.NewValidationError("Field 'name' may not be empty!")
 	}
 	if utf8.RuneCountInString(name) > 160 {
 		return infra.NewValidationError("Field 'name' is too long!")
@@ -36,7 +35,7 @@ func validateShaderName(name string) error {
 
 func validateShaderVisibility(visibility string) error {
 	if visibility == "" {
-		return infra.NewValidationError("Field 'visibility' is required!")
+		return infra.NewValidationError("Field 'visibility' may not be empty!")
 	}
 	if visibility != VisibilityUnlisted && visibility != VisibilityPrivate && visibility != VisibilityPublic {
 		return infra.NewValidationError("Field 'visibility' must be one of 'private', 'unlisted' or 'public'!")
@@ -91,14 +90,10 @@ type CreateShader struct {
 	ForkedFrom  string
 }
 
-func ShaderCreate(ctx context.Context, pgPool *pgxpool.Pool, shader *CreateShader) (string, error) {
+func ShaderCreate(ctx context.Context, shader models.ShaderCreate) (string, error) {
 	userInfo := ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
 		return "", infra.UnauthorizedError
-	}
-
-	if shader == nil {
-		return "", errors.New("shader is nil")
 	}
 
 	if err := validateShaderName(shader.Name); err != nil {
@@ -121,38 +116,18 @@ func ShaderCreate(ctx context.Context, pgPool *pgxpool.Pool, shader *CreateShade
 		return "", err
 	}
 
-	if shader.ForkedFrom != "" && !infra.ValidateGUID(shader.ForkedFrom) {
-		return "", infra.NewValidationError("Field 'forkedFrom' is invalid!")
-	}
-
-	guid, err := repository.ShaderInsertOne(ctx, pgPool, &repository.ShaderInsertCommand{
-		CreatedBy:   userInfo.UserID(),
-		Visibility:  shader.Visibility,
-		Name:        shader.Name,
-		Description: shader.Description,
-		Content:     shader.Content,
-		Tags:        shader.Tags,
-		ForkedFrom:  shader.ForkedFrom,
-	})
+	storedShader, err := db.ShaderCreate(shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content, userInfo.Id)
 	if err != nil {
 		return "", err
 	}
 
-	return guid, nil
+	return storedShader.Id, nil
 }
 
-type UpdateShader struct {
-	Name        string
-	Visibility  string
-	Description string
-	Tags        []string
-	Content     string
-}
-
-func ShaderUpdate(ctx context.Context, pgPool *pgxpool.Pool, shaderId string, shader UpdateShader) error {
+func ShaderUpdate(ctx context.Context, shaderId string, shader models.ShaderPartialUpdate) (models.Shader, error) {
 	userInfo := ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
-		return infra.UnauthorizedError
+		return models.Shader{}, infra.UnauthorizedError
 	}
 
 	var query strings.Builder
@@ -161,48 +136,42 @@ func ShaderUpdate(ctx context.Context, pgPool *pgxpool.Pool, shaderId string, sh
 	query.WriteString("UPDATE shaders SET updated_at = $1 ")
 	args = append(args, time.Now())
 
-	if shader.Name != "" {
-		if err := validateShaderName(shader.Name); err != nil {
-			return err
+	if shader.Name != nil {
+		if err := validateShaderName(*shader.Name); err != nil {
+			return models.Shader{}, err
 		}
 	}
 
-	if shader.Visibility != "" {
-		if err := validateShaderVisibility(shader.Visibility); err != nil {
-			return err
+	if shader.Visibility != nil {
+		if err := validateShaderVisibility(*shader.Visibility); err != nil {
+			return models.Shader{}, err
 		}
 	}
 
-	if shader.Description != "" {
-		if err := validateShaderDescription(shader.Description); err != nil {
-			return err
+	if shader.Description != nil {
+		if err := validateShaderDescription(*shader.Description); err != nil {
+			return models.Shader{}, err
 		}
 	}
 
-	if shader.Content != "" {
-		if err := validateShaderContent(shader.Content); err != nil {
-			return err
+	if shader.Content != nil {
+		if err := validateShaderContent(*shader.Content); err != nil {
+			return models.Shader{}, err
 		}
 	}
 
 	if shader.Tags != nil {
-		if err := validateShaderTags(shader.Tags); err != nil {
-			return err
+		if err := validateShaderTags(*shader.Tags); err != nil {
+			return models.Shader{}, err
 		}
 	}
 
-	err := repository.ShaderUpdateByCreatedByAndShaderId(ctx, pgPool, userInfo.UserID(), shaderId, &repository.ShaderUpdateCommand{
-		Name:        shader.Name,
-		Description: shader.Description,
-		Visibility:  shader.Visibility,
-		Content:     shader.Content,
-		Tags:        shader.Tags,
-	})
+	updatedShader, err := db.ShaderPartialUpdate(shaderId, userInfo.Id, shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content)
 	if err != nil {
-		return err
+		return models.Shader{}, err
 	}
 
-	return nil
+	return updatedShader, nil
 }
 
 // ShaderInfo contains all information about a shader, commiting code (content) for a smaller network footprint
@@ -218,71 +187,21 @@ type ShaderInfo struct {
 	Tags        []string
 }
 
-func ShaderInfoListCurrentUser(ctx context.Context, pgPool *pgxpool.Pool) ([]*ShaderInfo, error) {
+func ShaderInfoListCurrentUser(ctx context.Context) ([]models.ShaderInfo, error) {
 	userInfo := ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
 		return nil, infra.UnauthorizedError
 	}
 
-	all, err := repository.ShaderInfoFindAllByCreatedBy(ctx, pgPool, userInfo.UserID())
-	if err != nil {
-		return nil, err
-	}
-
-	var shaders = make([]*ShaderInfo, len(all))
-	for idx, stored := range all {
-		shaders[idx] = &ShaderInfo{
-			stored.Id,
-			stored.CreatedAt,
-			stored.UpdatedAt,
-			stored.Name,
-			stored.Visibility,
-			stored.Description,
-			stored.ForkedFrom,
-			stored.Tags,
-		}
-	}
-
-	return shaders, nil
+	return db.ShaderInfoListByCreatedBy(userInfo.Id)
 }
 
-type Shader struct {
-	Id        string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-
-	Name        string
-	Visibility  string
-	Description string
-	ForkedFrom  string
-	Tags        []string
-	Content     string
-}
-
-func ShaderGetOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId string) (*Shader, error) {
+func ShaderGet(ctx context.Context, shaderId string) (models.Shader, error) {
 	userInfo := ExtractUserInfoFromContext(ctx)
 
-	var shader *repository.ShaderDTO
-	var err error
 	if userInfo == nil {
-		shader, err = repository.ShaderFindOneById(ctx, pgPool, shaderId)
+		return db.ShaderGetPubliclyVisibleById(shaderId)
 	} else {
-		shader, err = repository.ShaderFindOneByIdAndCreatedBy(ctx, pgPool, shaderId, userInfo.UserID())
+		return db.ShaderGetVisibleByIdAndLoggedInUser(shaderId, userInfo.Id)
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &Shader{
-		shader.Id,
-		shader.CreatedAt,
-		shader.UpdatedAt,
-		shader.Name,
-		shader.Visibility,
-		shader.Description,
-		shader.ForkedFrom,
-		shader.Tags,
-		shader.Content,
-	}, nil
 }

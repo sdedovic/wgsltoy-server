@@ -1,8 +1,7 @@
 package main
 
 import (
-	"context"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sdedovic/wgsltoy-server/src/go/db"
 	"github.com/sdedovic/wgsltoy-server/src/go/web"
 	"log"
 	"net/http"
@@ -12,22 +11,22 @@ import (
 //==== Main ====\\
 
 func main() {
-	pgPool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	storage, err := db.InitializeDataDbConnection()
 	if err != nil {
-		log.Println("ERROR", "Unable to connect to database!", err.Error())
+		log.Println("ERROR", "Unable to connect to database caused by:", err.Error())
 		os.Exit(1)
 	}
-	defer pgPool.Close()
+	defer db.CloseStorageDb(storage)
 
 	http.HandleFunc("/health", web.HealthCheck())
 
-	http.HandleFunc("/user/register", web.UserRegister(pgPool))
-	http.HandleFunc("/user/login", web.UserLogin(pgPool))
-	http.HandleFunc("/user/me", web.UserMe(pgPool))
+	http.HandleFunc("/user/register", web.UserRegister())
+	http.HandleFunc("/user/login", web.UserLogin())
+	http.HandleFunc("/user/me", web.UserMe())
 
-	http.HandleFunc("/shader", web.ShaderCreate(pgPool))
-	http.HandleFunc("/user/me/shader/", web.ShaderInfoListOwn(pgPool))
-	http.HandleFunc("/shader/{id}", web.ShaderById(pgPool))
+	http.HandleFunc("/shader", web.ShaderCreate())
+	http.HandleFunc("/user/me/shader/", web.ShaderInfoListOwn())
+	http.HandleFunc("/shader/{id}", web.ShaderById())
 
 	log.Println("INFO", "Starting server on 0.0.0.0:8080")
 

@@ -3,33 +3,26 @@ package web
 import (
 	"context"
 	"encoding/json"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
+	"github.com/sdedovic/wgsltoy-server/src/go/models"
 	"github.com/sdedovic/wgsltoy-server/src/go/service"
 	"net/http"
-	"time"
 )
 
-type RegisterUser struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-func UserRegister(pgPool *pgxpool.Pool) http.HandlerFunc {
+func UserRegister() http.HandlerFunc {
 	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			return NewUnsupportedOperationError("POST")
 		}
 
 		// parse JSON
-		var registerUser RegisterUser
-		err := json.NewDecoder(r.Body).Decode(&registerUser)
+		var userRegister models.UserRegister
+		err := json.NewDecoder(r.Body).Decode(&userRegister)
 		if err != nil {
 			return infra.NewJsonParsingError(err)
 		}
 
-		err = service.UserRegister(ctx, pgPool, registerUser.Username, registerUser.Email, registerUser.Password)
+		err = service.UserRegister(ctx, userRegister.Username, userRegister.Email, userRegister.Password)
 		if err != nil {
 			return err
 		}
@@ -39,24 +32,19 @@ func UserRegister(pgPool *pgxpool.Pool) http.HandlerFunc {
 	})
 }
 
-type LoginUser struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-func UserLogin(pool *pgxpool.Pool) http.HandlerFunc {
+func UserLogin() http.HandlerFunc {
 	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
 			return NewUnsupportedOperationError("POST")
 		}
 
-		var loginUser LoginUser
-		err := json.NewDecoder(r.Body).Decode(&loginUser)
+		var userLogin models.UserLogin
+		err := json.NewDecoder(r.Body).Decode(&userLogin)
 		if err != nil {
 			return infra.NewJsonParsingError(err)
 		}
 
-		jwt, err := service.UserLogin(ctx, pool, loginUser.Username, loginUser.Password)
+		jwt, err := service.UserLoginGenerateToken(ctx, userLogin.Username, userLogin.Password)
 		if err != nil {
 			return err
 		}
@@ -70,31 +58,21 @@ func UserLogin(pool *pgxpool.Pool) http.HandlerFunc {
 	})
 }
 
-type User struct {
-	Username          string    `json:"username"`
-	Email             string    `json:"email"`
-	EmailVerification string    `json:"emailVerificationStatus"`
-	CreatedAt         time.Time `json:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt"`
-}
-
-func UserMe(pool *pgxpool.Pool) http.HandlerFunc {
+func UserMe() http.HandlerFunc {
 	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		switch r.Method {
 		case "GET":
-
-			user, err := service.UserGetCurrent(ctx, pool)
+			user, err := service.UserGetCurrent(ctx)
 			if err != nil {
 				return err
 			}
 
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			err = json.NewEncoder(w).Encode(User{user.Username, user.Email, user.EmailVerification, user.CreatedAt, user.UpdatedAt})
+			err = json.NewEncoder(w).Encode(user)
 			if err != nil {
 				return infra.NewJsonParsingError(err)
 			}
 			return nil
-
 		default:
 			return NewUnsupportedOperationError("GET")
 		}

@@ -1,12 +1,14 @@
-package infra
+package guid
 
 import (
 	"encoding/base64"
 	"github.com/google/uuid"
 )
 
-// NewGUID generates a 22 character long globally unique identifier
-func NewGUID() string {
+const RuneLength = 22
+
+// New creates a new unique identifier or panics
+func New() string {
 	v4, err := uuid.NewRandom()
 	if err != nil {
 		panic(err)
@@ -14,12 +16,13 @@ func NewGUID() string {
 	return base64.RawURLEncoding.Strict().EncodeToString(v4[:])
 }
 
-func ValidateGUID(guid string) bool {
-	if len(guid) != 22 {
+// Validate returns true if the supplied value is a valid GUID
+func Validate(s string) bool {
+	if len(s) != 22 {
 		return false
 	}
 
-	bytes, err := base64.RawURLEncoding.Strict().DecodeString(guid)
+	bytes, err := base64.RawURLEncoding.Strict().DecodeString(s)
 	if err != nil {
 		return false
 	}
