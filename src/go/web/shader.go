@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type CreateShader struct {
+type ShaderCreateRequestDTO struct {
 	Name        string   `json:"name"`
 	Visibility  string   `json:"visibility"`
 	Description string   `json:"description"`
@@ -26,7 +26,7 @@ func ShaderCreate(pgPool *pgxpool.Pool) http.HandlerFunc {
 			return NewUnsupportedOperationError("POST")
 		}
 
-		var createShader *CreateShader
+		var createShader *ShaderCreateRequestDTO
 		err := json.NewDecoder(r.Body).Decode(&createShader)
 		if err != nil {
 			return infra.NewJsonParsingError(err)
@@ -51,7 +51,7 @@ func ShaderCreate(pgPool *pgxpool.Pool) http.HandlerFunc {
 	})
 }
 
-type UpdateShader struct {
+type ShaderUpdateRequestDTO struct {
 	Name        string   `json:"name"`
 	Visibility  string   `json:"visibility"`
 	Description string   `json:"description"`
@@ -59,40 +59,53 @@ type UpdateShader struct {
 	Content     string   `json:"content"`
 }
 
-func ShaderUpdate(pgPool *pgxpool.Pool) http.HandlerFunc {
-	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
-		if r.Method != "PUT" {
-			return NewUnsupportedOperationError("PUT")
-		}
+type ShaderDTO struct {
+	ShaderInfoDTO
+	Content string `json:"content"`
+}
 
+func ShaderById(pgPool *pgxpool.Pool) http.HandlerFunc {
+	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		shaderId := r.PathValue("id")
 		if shaderId == "" {
 			return infra.NotFoundError
 		}
 
-		var updateShader *UpdateShader
-		err := json.NewDecoder(r.Body).Decode(&updateShader)
-		if err != nil {
-			return infra.NewJsonParsingError(err)
-		}
+		switch r.Method {
+		case "GET":
+			shader, err := service.ShaderGetOneById(ctx, pgPool, shaderId)
+			if err != nil {
+				return err
+			}
 
-		err = service.ShaderUpdate(ctx, pgPool, shaderId, service.UpdateShader{
-			Name:        updateShader.Name,
-			Visibility:  updateShader.Visibility,
-			Description: updateShader.Description,
-			Tags:        updateShader.Tags,
-			Content:     updateShader.Content,
-		})
-		if err != nil {
-			return err
-		}
+			return nil
+		case "PUT":
+			var updateShader *ShaderUpdateRequestDTO
+			err := json.NewDecoder(r.Body).Decode(&updateShader)
+			if err != nil {
+				return infra.NewJsonParsingError(err)
+			}
 
-		w.WriteHeader(http.StatusNoContent)
-		return nil
+			err = service.ShaderUpdate(ctx, pgPool, shaderId, service.UpdateShader{
+				Name:        updateShader.Name,
+				Visibility:  updateShader.Visibility,
+				Description: updateShader.Description,
+				Tags:        updateShader.Tags,
+				Content:     updateShader.Content,
+			})
+			if err != nil {
+				return err
+			}
+
+			w.WriteHeader(http.StatusNoContent)
+			return nil
+		default:
+			return NewUnsupportedOperationError("GET", "PUT")
+		}
 	})
 }
 
-type ShaderInfo struct {
+type ShaderInfoDTO struct {
 	Id        string    `json:"id"`
 	Location  string    `json:"location"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -117,7 +130,7 @@ func ShaderInfoListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {
 			return err
 		}
 
-		output := make([]ShaderInfo, len(shaders))
+		output := make([]ShaderInfoDTO, len(shaders))
 		for i, shader := range shaders {
 			location := fmt.Sprintf("/shader/%s", shader.Id)
 
@@ -126,7 +139,7 @@ func ShaderInfoListOwn(pgPool *pgxpool.Pool) http.HandlerFunc {
 				forkedFromLocation = fmt.Sprintf("/shader/%s", shader.ForkedFrom)
 			}
 
-			output[i] = ShaderInfo{
+			output[i] = ShaderInfoDTO{
 				shader.Name,
 				location,
 				shader.CreatedAt,

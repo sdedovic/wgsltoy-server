@@ -125,7 +125,7 @@ func ShaderCreate(ctx context.Context, pgPool *pgxpool.Pool, shader *CreateShade
 		return "", infra.NewValidationError("Field 'forkedFrom' is invalid!")
 	}
 
-	guid, err := repository.ShaderInsertOne(ctx, pgPool, &repository.ShaderInsert{
+	guid, err := repository.ShaderInsertOne(ctx, pgPool, &repository.ShaderInsertCommand{
 		CreatedBy:   userInfo.UserID(),
 		Visibility:  shader.Visibility,
 		Name:        shader.Name,
@@ -191,7 +191,7 @@ func ShaderUpdate(ctx context.Context, pgPool *pgxpool.Pool, shaderId string, sh
 		}
 	}
 
-	err := repository.ShaderUpdateByCreatedByAndShaderId(ctx, pgPool, userInfo.UserID(), shaderId, &repository.ShaderUpdate{
+	err := repository.ShaderUpdateByCreatedByAndShaderId(ctx, pgPool, userInfo.UserID(), shaderId, &repository.ShaderUpdateCommand{
 		shader.Name,
 		shader.Description,
 		shader.Visibility,
@@ -244,4 +244,15 @@ func ShaderInfoListCurrentUser(ctx context.Context, pgPool *pgxpool.Pool) ([]*Sh
 	}
 
 	return shaders, nil
+}
+
+func ShaderGetOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId string) (*ShaderInfo, error) {
+	userInfo := ExtractUserInfoFromContext(ctx)
+
+	var userId = ""
+	if userInfo != nil {
+		userId = userInfo.UserID()
+	}
+
+	shader, err := repository.ShaderFindOneByIdAndOptionalUserId(ctx, pgPool, shaderId, userId)
 }

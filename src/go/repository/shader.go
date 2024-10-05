@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-type ShaderInsert struct {
+type ShaderInsertCommand struct {
 	CreatedBy   string
 	Visibility  string
 	Name        string
@@ -22,7 +22,7 @@ type ShaderInsert struct {
 	ForkedFrom  string
 }
 
-type ShaderUpdate struct {
+type ShaderUpdateCommand struct {
 	Name        string
 	Description string
 	Visibility  string
@@ -30,7 +30,7 @@ type ShaderUpdate struct {
 	Tags        []string
 }
 
-type zeronullShaderInfoDto struct {
+type zeronullShaderInfoDTO struct {
 	Id        string    `db:"shader_id"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
@@ -54,7 +54,17 @@ type ShaderInfoDTO struct {
 	Tags        []string
 }
 
-func ShaderInsertOne(ctx context.Context, pgPool *pgxpool.Pool, shader *ShaderInsert) (string, error) {
+type zeronullShaderDTO struct {
+	zeronullShaderInfoDTO
+	content string `db:"content"`
+}
+
+type ShaderDTO struct {
+	ShaderInfoDTO
+	content string
+}
+
+func ShaderInsertOne(ctx context.Context, pgPool *pgxpool.Pool, shader *ShaderInsertCommand) (string, error) {
 	now := time.Now()
 	guid := infra.NewGUID()
 
@@ -80,7 +90,7 @@ func ShaderInsertOne(ctx context.Context, pgPool *pgxpool.Pool, shader *ShaderIn
 	return guid, nil
 }
 
-func ShaderUpdateByCreatedByAndShaderId(ctx context.Context, pgPool *pgxpool.Pool, createdBy string, shaderId string, shader *ShaderUpdate) error {
+func ShaderUpdateByCreatedByAndShaderId(ctx context.Context, pgPool *pgxpool.Pool, createdBy string, shaderId string, shader *ShaderUpdateCommand) error {
 	now := time.Now()
 
 	builder := psql.
@@ -144,7 +154,7 @@ func ShaderInfoFindAllByCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, cre
 		return nil, fmt.Errorf("failed querying shaders by user caused by: %w", err)
 	}
 
-	shaderDTOs, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[zeronullShaderInfoDto])
+	shaderDTOs, err := pgx.CollectRows(rows, pgx.RowToAddrOfStructByName[zeronullShaderInfoDTO])
 	if err != nil {
 		return nil, fmt.Errorf("failed deserializing database rows caused by: %w", err)
 	}
@@ -164,4 +174,92 @@ func ShaderInfoFindAllByCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, cre
 	}
 
 	return shaders, nil
+}
+
+const visibilityPublic = "public"
+const visibilityUnlisted = "unlisted"
+
+func ShaderFindOneById(ctx context.Context, pgPool *pgxpool.Pool, shaderId string) (*ShaderDTO, error) {
+	sql, args, err := psql.
+		Select("created_at", "updated_at", "created_by", "visibility", "name", "description", "content", "tags", "forked_from", "shader_id", "content").
+		From("shaders").
+		Where(squirrel.Eq{
+			"shader_id":  shaderId,
+			"visibility": []string{visibilityPublic, visibilityUnlisted},
+		}).
+		Limit(1).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := pgPool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed querying shader caused by: %w", err)
+	}
+	shader, err := pgx.CollectExactlyOneRow(rows, pgx.RowToAddrOfStructByName[zeronullShaderDTO])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, infra.NotFoundError
+		}
+		return nil, fmt.Errorf("failed deserializing database rows caused by: %w", err)
+	}
+
+	return &ShaderDTO{
+		ShaderInfoDTO{
+			shader.Id,
+			shader.CreatedAt,
+			shader.UpdatedAt,
+			shader.Name,
+			shader.Visibility,
+			shader.Description,
+			string(shader.ForkedFrom),
+			shader.Tags,
+		},
+		shader.content,
+	}, nil
+}
+
+func ShaderFindOneByIdAndCreatedBy(ctx context.Context, pgPool *pgxpool.Pool, shaderId string, createdBy string) (*ShaderDTO, error) {
+	sql, args, err := psql.
+		Select("created_at", "updated_at", "created_by", "visibility", "name", "description", "content", "tags", "forked_from", "shader_id", "content").
+		From("shaders").
+		Where(squirrel.And{
+			squirrel.Eq{"shader_id": shaderId},
+			squirrel.Or{
+				squirrel.Eq{"visibility": []string{visibilityPublic, visibilityUnlisted}},
+				squirrel.Eq{"visibility": "private", "created_by": createdBy},
+			},
+		}).
+		Limit(1).
+		ToSql()
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := pgPool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed querying shader caused by: %w", err)
+	}
+	shader, err := pgx.CollectExactlyOneRow(rows, pgx.RowToAddrOfStructByName[zeronullShaderDTO])
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, infra.NotFoundError
+		}
+		return nil, fmt.Errorf("failed deserializing database rows caused by: %w", err)
+	}
+
+	return &ShaderDTO{
+		ShaderInfoDTO{
+			shader.Id,
+			shader.CreatedAt,
+			shader.UpdatedAt,
+			shader.Name,
+			shader.Visibility,
+			shader.Description,
+			string(shader.ForkedFrom),
+			shader.Tags,
+		},
+		shader.content,
+	}, nil
 }
