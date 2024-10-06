@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/goioc/di"
 	"github.com/sdedovic/wgsltoy-server/src/go/db"
 	shaderService "github.com/sdedovic/wgsltoy-server/src/go/service/shader"
@@ -10,30 +11,47 @@ import (
 	"github.com/sdedovic/wgsltoy-server/src/go/web/user"
 	"log"
 	"net/http"
-	"os"
 	"reflect"
 )
 
-//==== Main ====\\
-
-func main() {
+func run() error {
+	// set up Postgres connection
 	pgClient, err := db.InitializePgClient()
 	if err != nil {
-		log.Println("ERROR", "Unable to connect to database caused by:", err.Error())
-		os.Exit(1)
+		return fmt.Errorf("unable to connect to database caused by: %w", err)
 	}
 	defer db.CloseStorageDb(pgClient)
 
-	_, _ = di.RegisterBeanInstance("Repository", pgClient)
-	_, _ = di.RegisterBean("UserService", reflect.TypeOf((*userService.Service)(nil)))
-	_, _ = di.RegisterBean("ShaderService", reflect.TypeOf((*shaderService.Service)(nil)))
-	_, _ = di.RegisterBean("UserController", reflect.TypeOf((*user.Controller)(nil)))
-	_, _ = di.RegisterBean("ShaderController", reflect.TypeOf((*shader.Controller)(nil)))
+	// Initialize IOC container
+	_, err = di.RegisterBeanInstance("PgClient", &pgClient)
+	if err != nil {
+		return fmt.Errorf("unable to register PgClient: %w", err)
+	}
+	_, err = di.RegisterBean("Repository", reflect.TypeOf((*db.Repository)(nil)))
+	if err != nil {
+		return fmt.Errorf("unable to register Repository: %w", err)
+	}
+	_, err = di.RegisterBean("UserService", reflect.TypeOf((*userService.Service)(nil)))
+	if err != nil {
+		return fmt.Errorf("unable to register UserService: %w", err)
+	}
+	_, err = di.RegisterBean("ShaderService", reflect.TypeOf((*shaderService.Service)(nil)))
+	if err != nil {
+		return fmt.Errorf("unable to register ShaderService: %w", err)
+	}
+	_, err = di.RegisterBean("UserController", reflect.TypeOf((*user.Controller)(nil)))
+	if err != nil {
+		return fmt.Errorf("unable to register UserController: %w", err)
+	}
+	_, err = di.RegisterBean("ShaderController", reflect.TypeOf((*shader.Controller)(nil)))
+	if err != nil {
+		return fmt.Errorf("unable to register ShaderController: %w", err)
+	}
 	if err = di.InitializeContainer(); err != nil {
-		log.Println("ERROR", "Unable to connect to initialize application caused by:", err.Error())
-		os.Exit(1)
+		return fmt.Errorf("unable to connect to initialize application caused by: %w", err)
 	}
 
+	// register route handlers
 	http.HandleFunc("/health", web.HealthCheck())
 
 	userController := di.GetInstance("UserController").(*user.Controller)
@@ -46,10 +64,21 @@ func main() {
 	http.HandleFunc("/user/me/shader/", shaderController.ShaderInfoListOwn())
 	http.HandleFunc("/shader/{id}", shaderController.ShaderById())
 
+	// start server
 	log.Println("INFO", "Starting server on 0.0.0.0:8080")
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
-		log.Println("ERROR", err.Error())
-		os.Exit(1)
+		return err
+	}
+
+	return nil
+}
+
+func main() {
+	log.SetFlags(log.Lshortfile)
+
+	err := run()
+	if err != nil {
+		log.Println("FATAL", err)
 	}
 }

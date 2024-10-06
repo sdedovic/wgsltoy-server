@@ -16,7 +16,7 @@ import (
 const OperationTimeout = 40
 
 type Repository struct {
-	pg PgClient `di.inject:"PgClient"`
+	pg *PgClient `di.inject:"PgClient"`
 }
 
 func (repo *Repository) UserCreate(username string, email string, hashedPassword string) (models.User, error) {
