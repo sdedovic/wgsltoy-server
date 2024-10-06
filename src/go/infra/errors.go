@@ -39,6 +39,10 @@ func NewValidationError(message string) error {
 	return ValidationError{message}
 }
 
+func (e ValidationError) Is() {
+
+}
+
 //==== Misc. ====\\
 
 // BadLoginError occurs when the provided credentials fail to authenticate

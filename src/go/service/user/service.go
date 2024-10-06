@@ -8,6 +8,7 @@ import (
 	"github.com/sdedovic/wgsltoy-server/src/go/models"
 	"github.com/sdedovic/wgsltoy-server/src/go/service"
 	"log"
+	"net/mail"
 	"regexp"
 	"strings"
 	"unicode/utf8"
@@ -18,7 +19,7 @@ type Service struct {
 }
 
 // UsernameRegex validates input is 5 to 15 chars, first one is letter, rest are alphanumeric, -, _, .
-var usernameRegex = regexp.MustCompile(`^[[:alpha:]][[:alnum:]-_.]{4,14}`)
+var usernameRegex = regexp.MustCompile(`^[[:alpha:]][[:alnum:]-_.]{4,14}$`)
 
 // UsernameBlacklist is the list of potentially abusive usernames
 var usernameBlacklist = []string{
@@ -34,15 +35,6 @@ func (s *Service) Register(ctx context.Context, username string, email string, p
 	if len(username) == 0 {
 		return infra.NewValidationError("Field 'username' is required!")
 	}
-
-	if len(email) == 0 {
-		return infra.NewValidationError("Field 'email' is required!")
-	}
-
-	if len(password) == 0 {
-		return infra.NewValidationError("Field 'password' is required!")
-	}
-
 	if !usernameRegex.MatchString(username) {
 		return infra.NewValidationError("Supplied username is not valid!")
 	}
@@ -53,6 +45,16 @@ func (s *Service) Register(ctx context.Context, username string, email string, p
 		}
 	}
 
+	if len(email) == 0 {
+		return infra.NewValidationError("Field 'email' is required!")
+	}
+	if _, err := mail.ParseAddress(email); err != nil {
+		return infra.NewValidationError("Field 'email' is not valid!")
+	}
+
+	if len(password) == 0 {
+		return infra.NewValidationError("Field 'password' is required!")
+	}
 	if utf8.RuneCountInString(password) < 10 {
 		return infra.NewValidationError("Supplied password is too short!")
 	}
