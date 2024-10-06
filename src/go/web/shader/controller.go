@@ -1,4 +1,4 @@
-package web
+package shader
 
 import (
 	"context"
@@ -6,14 +6,19 @@ import (
 	"fmt"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"github.com/sdedovic/wgsltoy-server/src/go/models"
-	"github.com/sdedovic/wgsltoy-server/src/go/service"
+	"github.com/sdedovic/wgsltoy-server/src/go/service/shader"
+	"github.com/sdedovic/wgsltoy-server/src/go/web"
 	"net/http"
 )
 
-func ShaderCreate() http.HandlerFunc {
-	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+type Controller struct {
+	service shader.IService `di.inject:"ShaderService"`
+}
+
+func (c *Controller) ShaderCreate() http.HandlerFunc {
+	return web.Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "POST" {
-			return NewUnsupportedOperationError("POST")
+			return web.NewUnsupportedOperationError("POST")
 		}
 
 		var shaderCreate models.ShaderCreate
@@ -22,7 +27,7 @@ func ShaderCreate() http.HandlerFunc {
 			return infra.NewJsonParsingError(err)
 		}
 
-		shaderId, err := service.ShaderCreate(ctx, shaderCreate)
+		shaderId, err := c.service.ShaderCreate(ctx, shaderCreate)
 		if err != nil {
 			return err
 		}
@@ -34,8 +39,8 @@ func ShaderCreate() http.HandlerFunc {
 	})
 }
 
-func ShaderById() http.HandlerFunc {
-	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (c *Controller) ShaderById() http.HandlerFunc {
+	return web.Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		shaderId := r.PathValue("id")
 		if shaderId == "" {
 			return infra.NotFoundError
@@ -43,7 +48,7 @@ func ShaderById() http.HandlerFunc {
 
 		switch r.Method {
 		case "GET":
-			shader, err := service.ShaderGet(ctx, shaderId)
+			shader, err := c.service.ShaderGet(ctx, shaderId)
 			if err != nil {
 				return err
 			}
@@ -63,7 +68,7 @@ func ShaderById() http.HandlerFunc {
 				return infra.NewJsonParsingError(err)
 			}
 
-			shader, err := service.ShaderUpdate(ctx, shaderId, shaderUpdate)
+			shader, err := c.service.ShaderUpdate(ctx, shaderId, shaderUpdate)
 			if err != nil {
 				return err
 			}
@@ -75,24 +80,24 @@ func ShaderById() http.HandlerFunc {
 			}
 			return nil
 		default:
-			return NewUnsupportedOperationError("GET", "PUT")
+			return web.NewUnsupportedOperationError("GET", "PUT")
 		}
 	})
 }
 
-func ShaderInfoListOwn() http.HandlerFunc {
-	return Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
+func (c *Controller) ShaderInfoListOwn() http.HandlerFunc {
+	return web.Handler(func(ctx context.Context, w http.ResponseWriter, r *http.Request) error {
 		if r.Method != "GET" {
-			return NewUnsupportedOperationError("GET")
+			return web.NewUnsupportedOperationError("GET")
 		}
 
-		shaders, err := service.ShaderInfoListCurrentUser(ctx)
+		shaders, err := c.service.ShaderInfoListCurrentUser(ctx)
 		if err != nil {
 			return err
 		}
 
-		for idx, shader := range shaders {
-			location := fmt.Sprintf("/shader/%s", shader.Id)
+		for idx, s := range shaders {
+			location := fmt.Sprintf("/shader/%s", s.Id)
 			shaders[idx].Location = location
 		}
 

@@ -7,61 +7,19 @@ import (
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/sdedovic/wgsltoy-server/src/go/guid"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"github.com/sdedovic/wgsltoy-server/src/go/models"
-	"os"
 	"time"
 )
 
-var psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
-var Storage DataStorage
-
 const OperationTimeout = 40
 
-type DataStorage struct {
-	Client *pgxpool.Pool
-	Ctx    context.Context
-	Cancel context.CancelFunc
+type Repository struct {
+	pg PgClient `di.inject:"PgClient"`
 }
 
-func CloseStorageDb(db DataStorage) {
-	defer db.Cancel()
-	defer func() {
-		db.Client.Close()
-	}()
-}
-
-func InitializeDataDbConnection() (DataStorage, error) {
-	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
-	defer cancelFunc()
-
-	// TODO: replace with configs
-	storageDbUrl := os.Getenv("DATABASE_URL")
-
-	config, err := pgxpool.ParseConfig(storageDbUrl)
-	if err != nil {
-		return DataStorage{}, err
-	}
-
-	// TODO: handle TLS
-
-	pool, err := pgxpool.NewWithConfig(ctx, config)
-	if err != nil {
-		return DataStorage{}, err
-	}
-
-	err = pool.Ping(ctx)
-	if err != nil {
-		return DataStorage{}, err
-	}
-
-	Storage = DataStorage{Client: pool, Ctx: ctx, Cancel: cancelFunc}
-	return Storage, nil
-}
-
-func UserCreate(username string, email string, hashedPassword string) (models.User, error) {
+func (repo *Repository) UserCreate(username string, email string, hashedPassword string) (models.User, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -77,7 +35,7 @@ func UserCreate(username string, email string, hashedPassword string) (models.Us
 		return models.User{}, fmt.Errorf("failed building sql caused by: %w", err)
 	}
 
-	_, err = Storage.Client.Exec(ctx, sql, args...)
+	_, err = repo.pg.pool.Exec(ctx, sql, args...)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -108,7 +66,7 @@ func UserCreate(username string, email string, hashedPassword string) (models.Us
 	}, nil
 }
 
-func UserGetByUsername(username string) (models.User, error) {
+func (repo *Repository) UserGetByUsername(username string) (models.User, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -120,7 +78,7 @@ func UserGetByUsername(username string) (models.User, error) {
 		return models.User{}, fmt.Errorf("failed building sql caused by: %w", err)
 	}
 
-	rows, _ := Storage.Client.Query(ctx, sql, args...)
+	rows, _ := repo.pg.pool.Query(ctx, sql, args...)
 	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.User])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -132,7 +90,7 @@ func UserGetByUsername(username string) (models.User, error) {
 	return user, nil
 }
 
-func UserGetById(userId string) (models.User, error) {
+func (repo *Repository) UserGetById(userId string) (models.User, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -144,7 +102,7 @@ func UserGetById(userId string) (models.User, error) {
 		return models.User{}, fmt.Errorf("failed building sql caused by: %w", err)
 	}
 
-	rows, _ := Storage.Client.Query(ctx, sql, args...)
+	rows, _ := repo.pg.pool.Query(ctx, sql, args...)
 	user, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.User])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -156,7 +114,7 @@ func UserGetById(userId string) (models.User, error) {
 	return user, nil
 }
 
-func ShaderCreate(name string, visibility string, description string, tags []string, content string, createdBy string) (models.Shader, error) {
+func (repo *Repository) ShaderCreate(name string, visibility string, description string, tags []string, content string, createdBy string) (models.Shader, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -172,7 +130,7 @@ func ShaderCreate(name string, visibility string, description string, tags []str
 		return models.Shader{}, err
 	}
 
-	_, err = Storage.Client.Exec(ctx, sql, args...)
+	_, err = repo.pg.pool.Exec(ctx, sql, args...)
 	if err != nil {
 		return models.Shader{}, fmt.Errorf("failed inserting shader caused by: %w", err)
 	}
@@ -188,7 +146,7 @@ func ShaderCreate(name string, visibility string, description string, tags []str
 	}, nil
 }
 
-func ShaderPartialUpdate(shaderId string, createdBy string, name *string, visibility *string, description *string, tags *[]string, content *string) (models.Shader, error) {
+func (repo *Repository) ShaderPartialUpdate(shaderId string, createdBy string, name *string, visibility *string, description *string, tags *[]string, content *string) (models.Shader, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -224,7 +182,7 @@ func ShaderPartialUpdate(shaderId string, createdBy string, name *string, visibi
 		Suffix("RETURNING *").
 		ToSql()
 
-	rows, err := Storage.Client.Query(ctx, sql, args...)
+	rows, err := repo.pg.pool.Query(ctx, sql, args...)
 	if err != nil {
 		return models.Shader{}, fmt.Errorf("failed updating shader caused by: %w", err)
 	}
@@ -240,7 +198,7 @@ func ShaderPartialUpdate(shaderId string, createdBy string, name *string, visibi
 	return shader, nil
 }
 
-func ShaderGetPubliclyVisibleById(shaderId string) (models.Shader, error) {
+func (repo *Repository) ShaderGetPubliclyVisibleById(shaderId string) (models.Shader, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -257,7 +215,7 @@ func ShaderGetPubliclyVisibleById(shaderId string) (models.Shader, error) {
 		return models.Shader{}, err
 	}
 
-	rows, _ := Storage.Client.Query(ctx, sql, args...)
+	rows, _ := repo.pg.pool.Query(ctx, sql, args...)
 	shader, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.Shader])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -269,7 +227,7 @@ func ShaderGetPubliclyVisibleById(shaderId string) (models.Shader, error) {
 	return shader, nil
 }
 
-func ShaderGetVisibleByIdAndLoggedInUser(shaderId string, currentUser string) (models.Shader, error) {
+func (repo *Repository) ShaderGetVisibleByIdAndLoggedInUser(shaderId string, currentUser string) (models.Shader, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -289,7 +247,7 @@ func ShaderGetVisibleByIdAndLoggedInUser(shaderId string, currentUser string) (m
 		return models.Shader{}, err
 	}
 
-	rows, _ := Storage.Client.Query(ctx, sql, args...)
+	rows, _ := repo.pg.pool.Query(ctx, sql, args...)
 	shader, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[models.Shader])
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -301,7 +259,7 @@ func ShaderGetVisibleByIdAndLoggedInUser(shaderId string, currentUser string) (m
 	return shader, nil
 }
 
-func ShaderInfoListByCreatedBy(createdBy string) ([]models.ShaderInfo, error) {
+func (repo *Repository) ShaderInfoListByCreatedBy(createdBy string) ([]models.ShaderInfo, error) {
 	ctx, cancelFunc := context.WithTimeout(context.Background(), OperationTimeout*time.Second)
 	defer cancelFunc()
 
@@ -316,7 +274,7 @@ func ShaderInfoListByCreatedBy(createdBy string) ([]models.ShaderInfo, error) {
 		return nil, err
 	}
 
-	rows, err := Storage.Client.Query(ctx, sql, args...)
+	rows, err := repo.pg.pool.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed querying shaders by user caused by: %w", err)
 	}

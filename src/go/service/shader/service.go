@@ -1,4 +1,4 @@
-package service
+package shader
 
 import (
 	"context"
@@ -6,11 +6,16 @@ import (
 	"github.com/sdedovic/wgsltoy-server/src/go/db"
 	"github.com/sdedovic/wgsltoy-server/src/go/infra"
 	"github.com/sdedovic/wgsltoy-server/src/go/models"
+	"github.com/sdedovic/wgsltoy-server/src/go/service"
 	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
+
+type Service struct {
+	repo db.IRepository `di.inject:"Repository"`
+}
 
 var tagRegex = regexp.MustCompile(`^[a-z][a-z0-9]+$`)
 var displayRegex = regexp.MustCompile(`^[\pL\pM\pN\pP\pS ]+$`)
@@ -81,17 +86,8 @@ func validateShaderTags(tags []string) error {
 	return nil
 }
 
-type CreateShader struct {
-	Name        string
-	Visibility  string
-	Description string
-	Content     string
-	Tags        []string
-	ForkedFrom  string
-}
-
-func ShaderCreate(ctx context.Context, shader models.ShaderCreate) (string, error) {
-	userInfo := ExtractUserInfoFromContext(ctx)
+func (s *Service) ShaderCreate(ctx context.Context, shader models.ShaderCreate) (string, error) {
+	userInfo := service.ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
 		return "", infra.UnauthorizedError
 	}
@@ -116,7 +112,7 @@ func ShaderCreate(ctx context.Context, shader models.ShaderCreate) (string, erro
 		return "", err
 	}
 
-	storedShader, err := db.ShaderCreate(shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content, userInfo.Id)
+	storedShader, err := s.repo.ShaderCreate(shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content, userInfo.Id)
 	if err != nil {
 		return "", err
 	}
@@ -124,8 +120,8 @@ func ShaderCreate(ctx context.Context, shader models.ShaderCreate) (string, erro
 	return storedShader.Id, nil
 }
 
-func ShaderUpdate(ctx context.Context, shaderId string, shader models.ShaderPartialUpdate) (models.Shader, error) {
-	userInfo := ExtractUserInfoFromContext(ctx)
+func (s *Service) ShaderUpdate(ctx context.Context, shaderId string, shader models.ShaderPartialUpdate) (models.Shader, error) {
+	userInfo := service.ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
 		return models.Shader{}, infra.UnauthorizedError
 	}
@@ -166,7 +162,7 @@ func ShaderUpdate(ctx context.Context, shaderId string, shader models.ShaderPart
 		}
 	}
 
-	updatedShader, err := db.ShaderPartialUpdate(shaderId, userInfo.Id, shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content)
+	updatedShader, err := s.repo.ShaderPartialUpdate(shaderId, userInfo.Id, shader.Name, shader.Visibility, shader.Description, shader.Tags, shader.Content)
 	if err != nil {
 		return models.Shader{}, err
 	}
@@ -174,34 +170,21 @@ func ShaderUpdate(ctx context.Context, shaderId string, shader models.ShaderPart
 	return updatedShader, nil
 }
 
-// ShaderInfo contains all information about a shader, commiting code (content) for a smaller network footprint
-type ShaderInfo struct {
-	Id        string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-
-	Name        string
-	Visibility  string
-	Description string
-	ForkedFrom  string
-	Tags        []string
-}
-
-func ShaderInfoListCurrentUser(ctx context.Context) ([]models.ShaderInfo, error) {
-	userInfo := ExtractUserInfoFromContext(ctx)
+func (s *Service) ShaderInfoListCurrentUser(ctx context.Context) ([]models.ShaderInfo, error) {
+	userInfo := service.ExtractUserInfoFromContext(ctx)
 	if userInfo == nil {
 		return nil, infra.UnauthorizedError
 	}
 
-	return db.ShaderInfoListByCreatedBy(userInfo.Id)
+	return s.repo.ShaderInfoListByCreatedBy(userInfo.Id)
 }
 
-func ShaderGet(ctx context.Context, shaderId string) (models.Shader, error) {
-	userInfo := ExtractUserInfoFromContext(ctx)
+func (s *Service) ShaderGet(ctx context.Context, shaderId string) (models.Shader, error) {
+	userInfo := service.ExtractUserInfoFromContext(ctx)
 
 	if userInfo == nil {
-		return db.ShaderGetPubliclyVisibleById(shaderId)
+		return s.repo.ShaderGetPubliclyVisibleById(shaderId)
 	} else {
-		return db.ShaderGetVisibleByIdAndLoggedInUser(shaderId, userInfo.Id)
+		return s.repo.ShaderGetVisibleByIdAndLoggedInUser(shaderId, userInfo.Id)
 	}
 }
