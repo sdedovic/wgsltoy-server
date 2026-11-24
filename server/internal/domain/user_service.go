@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -33,10 +34,16 @@ type UserService struct {
 	hasher   PasswordHasher
 	sessions SessionRepository
 	invite   InviteCode
+
+	// Login verifies against this when the username doesn't exist, so the response time doesn't reveal which usernames do.
+	dummyHash func() (string, error)
 }
 
 func NewUserService(repo UserRepository, shaders ShaderRepository, tx Transactor, hasher PasswordHasher, sessions SessionRepository, invite InviteCode) *UserService {
-	return &UserService{repo, shaders, tx, hasher, sessions, invite}
+	dummyHash := sync.OnceValues(func() (string, error) {
+		return hasher.Hash("dummy-password-for-unknown-users")
+	})
+	return &UserService{repo, shaders, tx, hasher, sessions, invite, dummyHash}
 }
 
 type UpdateUserCommand struct {
@@ -88,11 +95,14 @@ func (s *UserService) Login(ctx context.Context, username string, password strin
 	if len(password) == 0 {
 		return Session{}, NewValidationError("Field 'password' is required!")
 	}
+	if len(password) > MaxPasswordBytes {
+		return Session{}, ErrBadLogin
+	}
 
 	user, err := s.repo.FindByUsername(ctx, Username(username))
 	if err != nil {
 		if isNotFound(err) {
-			return Session{}, ErrBadLogin
+			return Session{}, s.verifyDummy(password)
 		}
 		return Session{}, err
 	}
@@ -113,6 +123,18 @@ func (s *UserService) Login(ctx context.Context, username string, password strin
 		return Session{}, err
 	}
 	return session, nil
+}
+
+// verifyDummy spends the same time as checking a real password, then fails the login.
+func (s *UserService) verifyDummy(password string) error {
+	hash, err := s.dummyHash()
+	if err != nil {
+		return fmt.Errorf("failed hashing dummy password: %w", err)
+	}
+	if _, err := s.hasher.Verify(Password(password), hash); err != nil {
+		return fmt.Errorf("failed verifying dummy password: %w", err)
+	}
+	return ErrBadLogin
 }
 
 func (s *UserService) Logout(ctx context.Context, sessionID SessionID) error {

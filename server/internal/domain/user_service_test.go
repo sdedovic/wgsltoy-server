@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -111,6 +112,12 @@ func TestUserService_Register_FailValidation(t *testing.T) {
 			"testuser@wgsltoy.com",
 			"abc",
 		},
+		{
+			"password too long",
+			"TestUser9",
+			"testuser@wgsltoy.com",
+			strings.Repeat("a", MaxPasswordBytes+1),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -122,4 +129,27 @@ func TestUserService_Register_FailValidation(t *testing.T) {
 			assert.IsType(t, ValidationError{}, err)
 		})
 	}
+}
+
+func TestUserService_Login_UnknownUserStillVerifies(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	repo := NewMockUserRepository(ctrl)
+	hasher := NewMockPasswordHasher(ctrl)
+
+	repo.EXPECT().FindByUsername(gomock.Any(), Username("nobody")).Return(User{}, ErrNotFound)
+	hasher.EXPECT().Hash(gomock.Any()).Return("dummy", nil)
+	hasher.EXPECT().Verify(Password("some-password"), "dummy").Return(true, nil)
+
+	s := NewUserService(repo, NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), hasher, NewMockSessionRepository(ctrl), "")
+	_, err := s.Login(context.Background(), "nobody", "some-password")
+	assert.ErrorIs(t, err, ErrBadLogin)
+}
+
+func TestUserService_Login_PasswordTooLong(t *testing.T) {
+	// no expectations, so any lookup or hashing fails the test
+	ctrl := gomock.NewController(t)
+	s := NewUserService(NewMockUserRepository(ctrl), NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), NewMockPasswordHasher(ctrl), NewMockSessionRepository(ctrl), "")
+
+	_, err := s.Login(context.Background(), "TestUser3", strings.Repeat("a", MaxPasswordBytes+1))
+	assert.ErrorIs(t, err, ErrBadLogin)
 }

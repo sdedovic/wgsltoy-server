@@ -99,6 +99,9 @@ const (
 
 type Password string
 
+// Bounds the hashing work a request can ask for, since Argon2 reads the whole input.
+const MaxPasswordBytes = 1024
+
 // Login doesn't use this, so tightening the policy doesn't lock out existing users.
 func NewPassword(s string) (Password, error) {
 	if len(s) == 0 {
@@ -106,6 +109,9 @@ func NewPassword(s string) (Password, error) {
 	}
 	if utf8.RuneCountInString(s) < 10 {
 		return "", NewValidationError("Supplied password is too short!")
+	}
+	if len(s) > MaxPasswordBytes {
+		return "", NewValidationError("Supplied password is too long!")
 	}
 	return Password(s), nil
 }

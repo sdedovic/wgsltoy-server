@@ -14,6 +14,7 @@ func SetSessionCookie(w http.ResponseWriter, sessionID string, expires time.Time
 		Expires:  expires,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
 	})
 }
@@ -25,5 +26,6 @@ func ClearSessionCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:   true,
 	})
 }
