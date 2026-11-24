@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"net/http"
-	"strings"
 
 	"github.com/sdedovic/wgsltoy-server/internal/domain"
 	"go.uber.org/zap"
@@ -32,27 +31,30 @@ func withSecurityHeaders(next http.Handler) http.Handler {
 	})
 }
 
-// Requests without a token pass through, since some routes allow anonymous access.
-func withAuthentication(tokens domain.TokenVerifier, next http.Handler) http.Handler {
+type AuthMiddleware struct {
+	auth domain.AuthService
+}
+
+func NewAuthMiddleware(auth domain.AuthService) *AuthMiddleware {
+	return &AuthMiddleware{auth}
+}
+
+// Requests without a session cookie pass through as anonymous; authenticated routes check PrincipalFromContext themselves.
+func (m *AuthMiddleware) Handler(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		header := r.Header.Get("Authorization")
-		if header == "" {
+		cookie, err := r.Cookie(sessionCookieName)
+		if err != nil {
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		token, ok := strings.CutPrefix(header, "Bearer ")
-		if !ok {
-			WriteError(w, r, domain.ErrUnauthorized)
-			return
-		}
-
-		identity, err := tokens.Verify(token)
+		principal, err := m.auth.Authenticate(r.Context(), cookie.Value)
 		if err != nil {
-			WriteError(w, r, err)
+			ClearSessionCookie(w)
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		next.ServeHTTP(w, r.WithContext(domain.WithIdentity(r.Context(), identity)))
+		next.ServeHTTP(w, r.WithContext(domain.WithPrincipal(r.Context(), principal)))
 	})
 }

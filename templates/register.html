@@ -1,0 +1,18 @@
+extends ./layout.html
+{{define "content"}}
+<h1>Register</h1>
+{{if .Error}}<p style="color:red">{{.Error}}</p>{{end}}
+<form method="post" action="/register">
+    <div>
+        <label>Username<br><input name="username" required autofocus></label>
+    </div>
+    <div>
+        <label>Email<br><input name="email" type="email" required></label>
+    </div>
+    <div>
+        <label>Password<br><input name="password" type="password" required></label>
+    </div>
+    <button type="submit">register</button>
+    <a href="/login">already have an account?</a>
+</form>
+{{end}}

@@ -1,0 +1,5 @@
+extends ./layout.html
+{{define "content"}}
+<h1>{{.User.Username}}</h1>
+<p>Member since {{.User.CreatedAt.Format "January 2006"}}</p>
+{{end}}

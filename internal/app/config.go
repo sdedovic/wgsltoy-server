@@ -8,9 +8,10 @@ import (
 
 type Config struct {
 	DatabaseURL string
-	AppSecret string
-	Addr string
-	Dev bool
+	AppSecret   string
+	Addr        string
+	Dev         bool
+	TemplateDir string
 }
 
 func NewConfig() (Config, error) {
@@ -19,9 +20,9 @@ func NewConfig() (Config, error) {
 		AppSecret:   os.Getenv("APP_SECRET"),
 		Addr:        ":" + cmp.Or(os.Getenv("PORT"), "8080"),
 		Dev:         os.Getenv("APP_ENV") == "dev",
+		TemplateDir: cmp.Or(os.Getenv("TEMPLATE_DIR"), "templates"),
 	}
 
-	// an empty secret would sign tokens anyone can forge
 	if config.AppSecret == "" {
 		return Config{}, errors.New("APP_SECRET must be set")
 	}

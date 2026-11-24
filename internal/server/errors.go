@@ -26,6 +26,18 @@ type ErrorResponse struct {
 	Message string `json:"causedBy"`
 }
 
+func WriteHTMLError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, domain.ErrUnauthorized):
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+	case errors.Is(err, domain.ErrNotFound):
+		http.Error(w, "404 not found", http.StatusNotFound)
+	default:
+		Logger(r.Context()).Error("request failed", zap.Error(err))
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+	}
+}
+
 func WriteError(w http.ResponseWriter, r *http.Request, err error) {
 	var validationError domain.ValidationError
 	var jsonParsingError JSONParsingError

@@ -40,6 +40,34 @@ func (m *MockShaderRepository) EXPECT() *MockShaderRepositoryMockRecorder {
 	return m.recorder
 }
 
+// DeleteByID mocks base method.
+func (m *MockShaderRepository) DeleteByID(ctx context.Context, id ShaderID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByID", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByID indicates an expected call of DeleteByID.
+func (mr *MockShaderRepositoryMockRecorder) DeleteByID(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByID", reflect.TypeOf((*MockShaderRepository)(nil).DeleteByID), ctx, id)
+}
+
+// DeleteByIDAndOwner mocks base method.
+func (m *MockShaderRepository) DeleteByIDAndOwner(ctx context.Context, id ShaderID, owner UserID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByIDAndOwner", ctx, id, owner)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByIDAndOwner indicates an expected call of DeleteByIDAndOwner.
+func (mr *MockShaderRepositoryMockRecorder) DeleteByIDAndOwner(ctx, id, owner any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByIDAndOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeleteByIDAndOwner), ctx, id, owner)
+}
+
 // FindByID mocks base method.
 func (m *MockShaderRepository) FindByID(ctx context.Context, id ShaderID) (Shader, error) {
 	m.ctrl.T.Helper()
@@ -55,6 +83,21 @@ func (mr *MockShaderRepositoryMockRecorder) FindByID(ctx, id any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByID", reflect.TypeOf((*MockShaderRepository)(nil).FindByID), ctx, id)
 }
 
+// FindByIDAndOwner mocks base method.
+func (m *MockShaderRepository) FindByIDAndOwner(ctx context.Context, id ShaderID, owner UserID) (Shader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindByIDAndOwner", ctx, id, owner)
+	ret0, _ := ret[0].(Shader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByIDAndOwner indicates an expected call of FindByIDAndOwner.
+func (mr *MockShaderRepositoryMockRecorder) FindByIDAndOwner(ctx, id, owner any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByIDAndOwner", reflect.TypeOf((*MockShaderRepository)(nil).FindByIDAndOwner), ctx, id, owner)
+}
+
 // FindTop100ByCreatedByOrderByUpdatedAtDesc mocks base method.
 func (m *MockShaderRepository) FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx context.Context, createdBy UserID) ([]ShaderSummary, error) {
 	m.ctrl.T.Helper()
@@ -68,6 +111,49 @@ func (m *MockShaderRepository) FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx con
 func (mr *MockShaderRepositoryMockRecorder) FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx, createdBy any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTop100ByCreatedByOrderByUpdatedAtDesc", reflect.TypeOf((*MockShaderRepository)(nil).FindTop100ByCreatedByOrderByUpdatedAtDesc), ctx, createdBy)
+}
+
+// FindTop100PublicOrderByUpdatedAtDesc mocks base method.
+func (m *MockShaderRepository) FindTop100PublicOrderByUpdatedAtDesc(ctx context.Context) ([]ShaderSummary, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindTop100PublicOrderByUpdatedAtDesc", ctx)
+	ret0, _ := ret[0].([]ShaderSummary)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindTop100PublicOrderByUpdatedAtDesc indicates an expected call of FindTop100PublicOrderByUpdatedAtDesc.
+func (mr *MockShaderRepositoryMockRecorder) FindTop100PublicOrderByUpdatedAtDesc(ctx any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTop100PublicOrderByUpdatedAtDesc", reflect.TypeOf((*MockShaderRepository)(nil).FindTop100PublicOrderByUpdatedAtDesc), ctx)
+}
+
+// DeleteByOwner mocks base method.
+func (m *MockShaderRepository) DeleteByOwner(ctx context.Context, owner UserID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByOwner", ctx, owner)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByOwner indicates an expected call of DeleteByOwner.
+func (mr *MockShaderRepositoryMockRecorder) DeleteByOwner(ctx, owner any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeleteByOwner), ctx, owner)
+}
+
+// DeletePrivateByOwner mocks base method.
+func (m *MockShaderRepository) DeletePrivateByOwner(ctx context.Context, owner UserID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeletePrivateByOwner", ctx, owner)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeletePrivateByOwner indicates an expected call of DeletePrivateByOwner.
+func (mr *MockShaderRepositoryMockRecorder) DeletePrivateByOwner(ctx, owner any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePrivateByOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeletePrivateByOwner), ctx, owner)
 }
 
 // Save mocks base method.

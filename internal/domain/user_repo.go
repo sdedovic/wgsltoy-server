@@ -9,4 +9,5 @@ type UserRepository interface {
 	Save(ctx context.Context, user User) error
 	FindByUsername(ctx context.Context, username Username) (User, error)
 	FindByID(ctx context.Context, id UserID) (User, error)
+	DeleteByID(ctx context.Context, id UserID) error
 }

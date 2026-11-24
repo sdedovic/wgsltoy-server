@@ -100,6 +100,20 @@ func NewPassword(s string) (Password, error) {
 	return Password(s), nil
 }
 
+//==== UserVisibility ====\\
+
+// NewUserVisibility validates that the value is one of the two visibility levels supported for user accounts.
+func NewUserVisibility(s string) (Visibility, error) {
+	switch Visibility(s) {
+	case VisibilityPrivate, VisibilityPublic:
+		return Visibility(s), nil
+	case "":
+		return "", NewValidationError("Field 'visibility' may not be empty!")
+	default:
+		return "", NewValidationError("Field 'visibility' must be one of 'private' or 'public'!")
+	}
+}
+
 //==== User ====\\
 
 type User struct {
@@ -110,4 +124,30 @@ type User struct {
 	Email             Email
 	EmailVerification EmailVerification
 	PasswordHash      string
+	Visibility        Visibility
+	IsAdmin           bool
+}
+
+type UserChanges struct {
+	Username   Username
+	Email      Email
+	Visibility Visibility
+}
+
+func (u *User) Apply(changes UserChanges, updatedAt time.Time) {
+	u.Username = changes.Username
+	if changes.Email != u.Email {
+		u.Email = changes.Email
+		u.EmailVerification = EmailVerificationPending
+	}
+	u.Visibility = changes.Visibility
+	u.UpdatedAt = updatedAt
+}
+
+func (u User) IsVisibleTo(p Principal) bool {
+	return p.User.IsAdmin || u.Visibility != VisibilityPrivate || u.ID == p.User.ID
+}
+
+func (u User) IsEditableBy(p Principal) bool {
+	return p.User.IsAdmin || u.ID == p.User.ID
 }

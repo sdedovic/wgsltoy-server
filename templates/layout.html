@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wgsltoy</title>
+
+</head>
+<body>
+<nav>
+    <a href="/">wgsltoy</a>
+    {{if .Principal}}
+    &nbsp;|&nbsp;
+    <a href="/me">{{.Principal.User.Username}}</a>
+    &nbsp;
+    <form method="post" action="/logout" style="display:inline">
+        <button type="submit">logout</button>
+    </form>
+    {{else}}
+    &nbsp;|&nbsp;
+    <a href="/login">login</a>
+    &nbsp;
+    <a href="/register">register</a>
+    {{end}}
+</nav>
+<main>
+{{block "content" .}}{{end}}
+</main>
+</body>
+</html>

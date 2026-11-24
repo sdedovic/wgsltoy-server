@@ -26,6 +26,7 @@
             pkgs.go_1_27
             pkgs.just
             pkgs.go-migrate
+            pkgs.golangci-lint
           ];
         };
       }

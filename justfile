@@ -19,5 +19,9 @@ test-static:
     go tool go-compiles ./...
     go tool nilaway -include-pkgs github.com/sdedovic/wgsltoy-server -exclude-file-docstrings "Code generated" ./...
 
+# run linter
+lint:
+    golangci-lint run ./...
+
 # run all tests
-test: test-unit test-static
+test: test-unit test-static lint

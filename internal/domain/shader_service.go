@@ -21,17 +21,16 @@ type CreateShaderCommand struct {
 	Content     string
 }
 
-// Nil fields are left unchanged.
 type UpdateShaderCommand struct {
-	Name        *string
-	Visibility  *string
-	Description *string
-	Tags        *[]string
-	Content     *string
+	Name        string
+	Visibility  string
+	Description string
+	Tags        []string
+	Content     string
 }
 
 func (s *ShaderService) Create(ctx context.Context, cmd CreateShaderCommand) (ShaderID, error) {
-	identity, ok := IdentityFromContext(ctx)
+	principal, ok := PrincipalFromContext(ctx)
 	if !ok {
 		return "", ErrUnauthorized
 	}
@@ -40,32 +39,29 @@ func (s *ShaderService) Create(ctx context.Context, cmd CreateShaderCommand) (Sh
 	if err != nil {
 		return "", err
 	}
-
 	visibility, err := NewVisibility(cmd.Visibility)
 	if err != nil {
 		return "", err
 	}
-
 	description, err := NewShaderDescription(cmd.Description)
 	if err != nil {
 		return "", err
 	}
-
 	content, err := NewShaderContent(cmd.Content)
 	if err != nil {
 		return "", err
 	}
-
 	tags, err := NewShaderTags(cmd.Tags)
 	if err != nil {
 		return "", err
 	}
 
+	ownerID := principal.User.ID
 	createdAt := time.Now()
 	shader := Shader{
 		ShaderSummary: ShaderSummary{
 			ID:          GenerateShaderID(),
-			CreatedBy:   identity.UserID,
+			CreatedBy:   &ownerID,
 			CreatedAt:   createdAt,
 			UpdatedAt:   createdAt,
 			Name:        name,
@@ -78,57 +74,7 @@ func (s *ShaderService) Create(ctx context.Context, cmd CreateShaderCommand) (Sh
 	if err := s.repo.Save(ctx, shader); err != nil {
 		return "", err
 	}
-
 	return shader.ID, nil
-}
-
-func (s *ShaderService) Update(ctx context.Context, id ShaderID, cmd UpdateShaderCommand) (Shader, error) {
-	identity, ok := IdentityFromContext(ctx)
-	if !ok {
-		return Shader{}, ErrUnauthorized
-	}
-
-	var changes ShaderChanges
-	var err error
-	if changes.Name, err = optional(cmd.Name, NewShaderName); err != nil {
-		return Shader{}, err
-	}
-	if changes.Visibility, err = optional(cmd.Visibility, NewVisibility); err != nil {
-		return Shader{}, err
-	}
-	if changes.Description, err = optional(cmd.Description, NewShaderDescription); err != nil {
-		return Shader{}, err
-	}
-	if changes.Content, err = optional(cmd.Content, NewShaderContent); err != nil {
-		return Shader{}, err
-	}
-	if changes.Tags, err = optional(cmd.Tags, NewShaderTags); err != nil {
-		return Shader{}, err
-	}
-
-	shader, err := s.repo.FindByID(ctx, id)
-	if err != nil {
-		return Shader{}, err
-	}
-	// not found rather than forbidden, so other users' shader IDs aren't revealed
-	if shader.CreatedBy != identity.UserID {
-		return Shader{}, ErrNotFound
-	}
-
-	shader.Apply(changes, time.Now())
-	if err := s.repo.Save(ctx, shader); err != nil {
-		return Shader{}, err
-	}
-	return shader, nil
-}
-
-func (s *ShaderService) ListMine(ctx context.Context) ([]ShaderSummary, error) {
-	identity, ok := IdentityFromContext(ctx)
-	if !ok {
-		return nil, ErrUnauthorized
-	}
-
-	return s.repo.FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx, identity.UserID)
 }
 
 func (s *ShaderService) Get(ctx context.Context, id ShaderID) (Shader, error) {
@@ -137,20 +83,77 @@ func (s *ShaderService) Get(ctx context.Context, id ShaderID) (Shader, error) {
 		return Shader{}, err
 	}
 
-	identity, _ := IdentityFromContext(ctx)
-	if !shader.IsVisibleTo(identity.UserID) {
+	principal, _ := PrincipalFromContext(ctx)
+	if !shader.IsVisibleTo(principal) {
 		return Shader{}, ErrNotFound
 	}
 	return shader, nil
 }
 
-func optional[In, Out any](value *In, newFn func(In) (Out, error)) (*Out, error) {
-	if value == nil {
-		return nil, nil
+func (s *ShaderService) Update(ctx context.Context, id ShaderID, cmd UpdateShaderCommand) (Shader, error) {
+	principal, ok := PrincipalFromContext(ctx)
+	if !ok {
+		return Shader{}, ErrUnauthorized
 	}
-	out, err := newFn(*value)
+
+	name, err := NewShaderName(cmd.Name)
 	if err != nil {
-		return nil, err
+		return Shader{}, err
 	}
-	return &out, nil
+	visibility, err := NewVisibility(cmd.Visibility)
+	if err != nil {
+		return Shader{}, err
+	}
+	description, err := NewShaderDescription(cmd.Description)
+	if err != nil {
+		return Shader{}, err
+	}
+	content, err := NewShaderContent(cmd.Content)
+	if err != nil {
+		return Shader{}, err
+	}
+	tags, err := NewShaderTags(cmd.Tags)
+	if err != nil {
+		return Shader{}, err
+	}
+
+	shader, err := s.repo.FindByIDAndOwner(ctx, id, principal.User.ID)
+	if err != nil {
+		return Shader{}, err
+	}
+
+	shader.Apply(ShaderChanges{
+		Name:        name,
+		Visibility:  visibility,
+		Description: description,
+		Tags:        tags,
+		Content:     content,
+	}, time.Now())
+	if err := s.repo.Save(ctx, shader); err != nil {
+		return Shader{}, err
+	}
+	return shader, nil
+}
+
+func (s *ShaderService) Delete(ctx context.Context, id ShaderID) error {
+	principal, ok := PrincipalFromContext(ctx)
+	if !ok {
+		return ErrUnauthorized
+	}
+	if principal.User.IsAdmin {
+		return s.repo.DeleteByID(ctx, id)
+	}
+	return s.repo.DeleteByIDAndOwner(ctx, id, principal.User.ID)
+}
+
+func (s *ShaderService) ListMine(ctx context.Context) ([]ShaderSummary, error) {
+	principal, ok := PrincipalFromContext(ctx)
+	if !ok {
+		return nil, ErrUnauthorized
+	}
+	return s.repo.FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx, principal.User.ID)
+}
+
+func (s *ShaderService) ListPublic(ctx context.Context) ([]ShaderSummary, error) {
+	return s.repo.FindTop100PublicOrderByUpdatedAtDesc(ctx)
 }

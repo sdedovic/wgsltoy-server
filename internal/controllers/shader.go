@@ -2,83 +2,161 @@ package controllers
 
 import (
 	"net/http"
-	"time"
+	"strings"
 
 	"github.com/sdedovic/wgsltoy-server/internal/domain"
 	"github.com/sdedovic/wgsltoy-server/internal/server"
+	"github.com/sdedovic/wgsltoy-server/internal/views"
 )
 
 type ShaderController struct {
 	shaders *domain.ShaderService
+	tmpl    *views.Templates
 }
 
-func NewShaderController(shaders *domain.ShaderService) *ShaderController {
-	return &ShaderController{shaders}
+func NewShaderController(shaders *domain.ShaderService, tmpl *views.Templates) *ShaderController {
+	return &ShaderController{shaders, tmpl}
 }
 
 func (c *ShaderController) Register(mux *http.ServeMux) {
-	mux.Handle("POST /api/v1/shader", server.Handle(c.create))
-	mux.Handle("GET /api/v1/shader/{id}", server.Handle(c.get))
-	mux.Handle("PUT /api/v1/shader/{id}", server.Handle(c.update))
-	mux.Handle("GET /api/v1/user/me/shader", server.Handle(c.listMine))
+	mux.Handle("GET /", server.HandleHTML(c.gallery))
+	mux.Handle("POST /shader", server.HandleHTML(c.create))
+	mux.Handle("GET /shader/{id}", server.HandleHTML(c.view))
+	mux.Handle("PUT /shader/{id}", server.HandleHTML(c.update))
+	mux.Handle("DELETE /shader/{id}", server.HandleHTML(c.delete))
+	mux.Handle("GET /shader/{id}/edit", server.HandleHTML(c.editor))
 }
 
-type createShaderRequest struct {
-	Name        string   `json:"name"`
-	Visibility  string   `json:"visibility"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
-	Content     string   `json:"content"`
+type galleryPageData struct {
+	Principal *domain.Principal
+	Shaders   []domain.ShaderSummary
 }
 
-type updateShaderRequest struct {
-	Name        *string   `json:"name"`
-	Visibility  *string   `json:"visibility"`
-	Description *string   `json:"description"`
-	Tags        *[]string `json:"tags"`
-	Content     *string   `json:"content"`
+type shaderPageData struct {
+	Principal *domain.Principal
+	Shader    domain.Shader
+	CanEdit   bool
 }
 
-type shaderSummaryResponse struct {
-	ID          string    `json:"id"`
-	Location    string    `json:"location"`
-	CreatedBy   string    `json:"createdBy"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
-	Name        string    `json:"name"`
-	Visibility  string    `json:"visibility"`
-	Description string    `json:"description"`
-	Tags        []string  `json:"tags"`
+type editorPageData struct {
+	Principal *domain.Principal
+	Shader    domain.Shader
 }
 
-type shaderResponse struct {
-	shaderSummaryResponse
-	Content string `json:"content"`
-}
-
-func shaderLocation(id domain.ShaderID) string {
-	return "/api/v1/shader/" + string(id)
-}
-
-func toShaderSummaryResponse(s domain.ShaderSummary) shaderSummaryResponse {
-	return shaderSummaryResponse{
-		ID:          string(s.ID),
-		Location:    shaderLocation(s.ID),
-		CreatedBy:   string(s.CreatedBy),
-		CreatedAt:   s.CreatedAt,
-		UpdatedAt:   s.UpdatedAt,
-		Name:        string(s.Name),
-		Visibility:  string(s.Visibility),
-		Description: string(s.Description),
-		Tags:        s.Tags,
+func principalPtr(r *http.Request) *domain.Principal {
+	if p, ok := domain.PrincipalFromContext(r.Context()); ok {
+		return &p
 	}
+	return nil
 }
 
-func toShaderResponse(s domain.Shader) shaderResponse {
-	return shaderResponse{toShaderSummaryResponse(s.ShaderSummary), string(s.Content)}
+func (c *ShaderController) gallery(w http.ResponseWriter, r *http.Request) error {
+	shaders, err := c.shaders.ListPublic(r.Context())
+	if err != nil {
+		return err
+	}
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Gallery, galleryPageData{
+		Principal: principalPtr(r),
+		Shaders:   shaders,
+	})
 }
 
-// A malformed ID can't match any shader, so it's a 404.
+func (c *ShaderController) view(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathShaderID(r)
+	if err != nil {
+		return err
+	}
+	shader, err := c.shaders.Get(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	canEdit := false
+	if p, ok := domain.PrincipalFromContext(r.Context()); ok {
+		canEdit = shader.IsEditableBy(p)
+	}
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Shader, shaderPageData{
+		Principal: principalPtr(r),
+		Shader:    shader,
+		CanEdit:   canEdit,
+	})
+}
+
+func (c *ShaderController) editor(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathShaderID(r)
+	if err != nil {
+		return err
+	}
+	principal, ok := domain.PrincipalFromContext(r.Context())
+	if !ok {
+		return domain.ErrUnauthorized
+	}
+	shader, err := c.shaders.Get(r.Context(), id)
+	if err != nil {
+		return err
+	}
+	if !shader.IsEditableBy(principal) {
+		return domain.ErrNotFound
+	}
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Editor, editorPageData{
+		Principal: &principal,
+		Shader:    shader,
+	})
+}
+
+func (c *ShaderController) create(w http.ResponseWriter, r *http.Request) error {
+	if err := r.ParseForm(); err != nil {
+		return err
+	}
+	id, err := c.shaders.Create(r.Context(), domain.CreateShaderCommand{
+		Name:        r.FormValue("name"),
+		Visibility:  r.FormValue("visibility"),
+		Description: r.FormValue("description"),
+		Tags:        parseTags(r.FormValue("tags")),
+		Content:     r.FormValue("content"),
+	})
+	if err != nil {
+		return err
+	}
+	http.Redirect(w, r, "/shader/"+string(id)+"/edit", http.StatusSeeOther)
+	return nil
+}
+
+func (c *ShaderController) update(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathShaderID(r)
+	if err != nil {
+		return err
+	}
+	if err := r.ParseForm(); err != nil {
+		return err
+	}
+	shader, err := c.shaders.Update(r.Context(), id, domain.UpdateShaderCommand{
+		Name:        r.FormValue("name"),
+		Visibility:  r.FormValue("visibility"),
+		Description: r.FormValue("description"),
+		Tags:        parseTags(r.FormValue("tags")),
+		Content:     r.FormValue("content"),
+	})
+	if err != nil {
+		return err
+	}
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Editor, editorPageData{
+		Principal: principalPtr(r),
+		Shader:    shader,
+	})
+}
+
+func (c *ShaderController) delete(w http.ResponseWriter, r *http.Request) error {
+	id, err := pathShaderID(r)
+	if err != nil {
+		return err
+	}
+	if err := c.shaders.Delete(r.Context(), id); err != nil {
+		return err
+	}
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
+}
+
 func pathShaderID(r *http.Request) (domain.ShaderID, error) {
 	id, err := domain.NewShaderID(r.PathValue("id"))
 	if err != nil {
@@ -87,115 +165,16 @@ func pathShaderID(r *http.Request) (domain.ShaderID, error) {
 	return id, nil
 }
 
-//	@Summary	Create a shader
-//	@Tags		shader
-//	@Accept		json
-//	@Security	BearerAuth
-//	@Param		body	body	createShaderRequest	true	"New shader"
-//	@Success	201
-//	@Header		201	{string}	Location	"URL of the new shader"
-//	@Failure	400	{object}	server.ErrorResponse
-//	@Failure	401	{object}	server.ErrorResponse
-//	@Router		/api/v1/shader [post]
-func (c *ShaderController) create(w http.ResponseWriter, r *http.Request) error {
-	var req createShaderRequest
-	if err := server.DecodeJSON(r, &req); err != nil {
-		return err
+func parseTags(s string) []string {
+	if s == "" {
+		return nil
 	}
-
-	id, err := c.shaders.Create(r.Context(), domain.CreateShaderCommand{
-		Name:        req.Name,
-		Visibility:  req.Visibility,
-		Description: req.Description,
-		Tags:        req.Tags,
-		Content:     req.Content,
-	})
-	if err != nil {
-		return err
+	parts := strings.Split(s, ",")
+	tags := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if t := strings.TrimSpace(p); t != "" {
+			tags = append(tags, t)
+		}
 	}
-
-	w.Header().Set("Location", shaderLocation(id))
-	w.WriteHeader(http.StatusCreated)
-	return nil
-}
-
-//	@Summary		Get a shader
-//	@Description	Anonymous users see public and unlisted shaders. Logged-in users also see their own private ones.
-//	@Tags			shader
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id	path		string	true	"Shader ID"
-//	@Success		200	{object}	shaderResponse
-//	@Failure		404	{object}	server.ErrorResponse
-//	@Router			/api/v1/shader/{id} [get]
-func (c *ShaderController) get(w http.ResponseWriter, r *http.Request) error {
-	id, err := pathShaderID(r)
-	if err != nil {
-		return err
-	}
-
-	shader, err := c.shaders.Get(r.Context(), id)
-	if err != nil {
-		return err
-	}
-
-	return server.WriteJSON(w, http.StatusOK, toShaderResponse(shader))
-}
-
-//	@Summary		Update a shader
-//	@Description	Partial update. Omitted fields are left unchanged.
-//	@Tags			shader
-//	@Accept			json
-//	@Produce		json
-//	@Security		BearerAuth
-//	@Param			id		path		string				true	"Shader ID"
-//	@Param			body	body		updateShaderRequest	true	"Changes"
-//	@Success		200		{object}	shaderResponse
-//	@Failure		400		{object}	server.ErrorResponse
-//	@Failure		401		{object}	server.ErrorResponse
-//	@Failure		404		{object}	server.ErrorResponse
-//	@Router			/api/v1/shader/{id} [put]
-func (c *ShaderController) update(w http.ResponseWriter, r *http.Request) error {
-	id, err := pathShaderID(r)
-	if err != nil {
-		return err
-	}
-
-	var req updateShaderRequest
-	if err := server.DecodeJSON(r, &req); err != nil {
-		return err
-	}
-
-	shader, err := c.shaders.Update(r.Context(), id, domain.UpdateShaderCommand{
-		Name:        req.Name,
-		Visibility:  req.Visibility,
-		Description: req.Description,
-		Tags:        req.Tags,
-		Content:     req.Content,
-	})
-	if err != nil {
-		return err
-	}
-
-	return server.WriteJSON(w, http.StatusOK, toShaderResponse(shader))
-}
-
-//	@Summary	List the current user's shaders
-//	@Tags		shader
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{array}		shaderSummaryResponse
-//	@Failure	401	{object}	server.ErrorResponse
-//	@Router		/api/v1/user/me/shader [get]
-func (c *ShaderController) listMine(w http.ResponseWriter, r *http.Request) error {
-	shaders, err := c.shaders.ListMine(r.Context())
-	if err != nil {
-		return err
-	}
-
-	response := make([]shaderSummaryResponse, len(shaders))
-	for i, shader := range shaders {
-		response[i] = toShaderSummaryResponse(shader)
-	}
-	return server.WriteJSON(w, http.StatusOK, response)
+	return tags
 }

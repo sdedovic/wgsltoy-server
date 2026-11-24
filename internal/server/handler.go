@@ -1,8 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
+
+	"github.com/sdedovic/htpp"
 )
 
 type HandlerFunc func(w http.ResponseWriter, r *http.Request) error
@@ -19,6 +22,25 @@ func DecodeJSON(r *http.Request, v any) error {
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
 		return JSONParsingError{err}
 	}
+	return nil
+}
+
+func HandleHTML(h HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := h(w, r); err != nil {
+			WriteHTMLError(w, r, err)
+		}
+	})
+}
+
+func WriteHTML(w http.ResponseWriter, status int, tmpl htpp.Template, data any) error {
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write(buf.Bytes())
 	return nil
 }
 

@@ -113,7 +113,7 @@ func NewShaderTags(tags []string) (ShaderTags, error) {
 // Listings leave out Content, which can be large.
 type ShaderSummary struct {
 	ID          ShaderID
-	CreatedBy   UserID
+	CreatedBy   *UserID
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Name        ShaderName
@@ -122,9 +122,22 @@ type ShaderSummary struct {
 	Tags        ShaderTags
 }
 
-// An anonymous viewer has an empty UserID, so only sees public and unlisted shaders.
-func (s ShaderSummary) IsVisibleTo(viewer UserID) bool {
-	return s.Visibility != VisibilityPrivate || s.CreatedBy == viewer
+// An anonymous principal has an empty User.ID, so only sees public and unlisted shaders.
+func (s ShaderSummary) IsVisibleTo(p Principal) bool {
+	if p.User.IsAdmin {
+		return true
+	}
+	if s.Visibility != VisibilityPrivate {
+		return true
+	}
+	return s.CreatedBy != nil && *s.CreatedBy == p.User.ID
+}
+
+func (s ShaderSummary) IsEditableBy(p Principal) bool {
+	if p.User.IsAdmin {
+		return true
+	}
+	return s.CreatedBy != nil && *s.CreatedBy == p.User.ID
 }
 
 type Shader struct {
@@ -132,30 +145,19 @@ type Shader struct {
 	Content ShaderContent
 }
 
-// Nil fields are left unchanged.
 type ShaderChanges struct {
-	Name        *ShaderName
-	Visibility  *Visibility
-	Description *ShaderDescription
-	Tags        *ShaderTags
-	Content     *ShaderContent
+	Name        ShaderName
+	Visibility  Visibility
+	Description ShaderDescription
+	Tags        ShaderTags
+	Content     ShaderContent
 }
 
 func (s *Shader) Apply(changes ShaderChanges, updatedAt time.Time) {
-	if changes.Name != nil {
-		s.Name = *changes.Name
-	}
-	if changes.Visibility != nil {
-		s.Visibility = *changes.Visibility
-	}
-	if changes.Description != nil {
-		s.Description = *changes.Description
-	}
-	if changes.Tags != nil {
-		s.Tags = *changes.Tags
-	}
-	if changes.Content != nil {
-		s.Content = *changes.Content
-	}
+	s.Name = changes.Name
+	s.Visibility = changes.Visibility
+	s.Description = changes.Description
+	s.Tags = changes.Tags
+	s.Content = changes.Content
 	s.UpdatedAt = updatedAt
 }

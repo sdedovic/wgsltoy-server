@@ -1,121 +1,85 @@
 package controllers
 
 import (
-	"errors"
 	"net/http"
-	"time"
 
 	"github.com/sdedovic/wgsltoy-server/internal/domain"
 	"github.com/sdedovic/wgsltoy-server/internal/server"
-	"go.uber.org/zap"
+	"github.com/sdedovic/wgsltoy-server/internal/views"
 )
 
 type UserController struct {
 	users *domain.UserService
-	log   *zap.Logger
+	tmpl  *views.Templates
 }
 
-func NewUserController(users *domain.UserService, log *zap.Logger) *UserController {
-	return &UserController{users, log}
+func NewUserController(users *domain.UserService, tmpl *views.Templates) *UserController {
+	return &UserController{users, tmpl}
 }
 
 func (c *UserController) Register(mux *http.ServeMux) {
-	mux.Handle("POST /api/v1/user/register", server.Handle(c.registerUser))
-	mux.Handle("POST /api/v1/user/login", server.Handle(c.login))
-	mux.Handle("GET /api/v1/user/me", server.Handle(c.me))
+	mux.Handle("GET /me", server.HandleHTML(c.me))
+	mux.Handle("PUT /me", server.HandleHTML(c.update))
+	mux.Handle("DELETE /me", server.HandleHTML(c.delete))
+	mux.Handle("GET /{username}", server.HandleHTML(c.profile))
 }
 
-type registerRequest struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+type mePageData struct {
+	Principal *domain.Principal
+	Error     string
 }
 
-type loginRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+type profilePageData struct {
+	Principal *domain.Principal
+	User      domain.User
 }
 
-type userResponse struct {
-	ID                      string    `json:"id"`
-	CreatedAt               time.Time `json:"createdAt"`
-	UpdatedAt               time.Time `json:"updatedAt"`
-	Username                string    `json:"username"`
-	Email                   string    `json:"email"`
-	EmailVerificationStatus string    `json:"emailVerificationStatus"`
-}
-
-//	@Summary	Register a new user
-//	@Tags		user
-//	@Accept		json
-//	@Produce	json
-//	@Param		body	body	registerRequest	true	"New user"
-//	@Success	201
-//	@Failure	400	{object}	server.ErrorResponse
-//	@Router		/api/v1/user/register [post]
-func (c *UserController) registerUser(w http.ResponseWriter, r *http.Request) error {
-	var req registerRequest
-	if err := server.DecodeJSON(r, &req); err != nil {
+func (c *UserController) me(w http.ResponseWriter, r *http.Request) error {
+	if _, err := c.users.GetCurrent(r.Context()); err != nil {
 		return err
 	}
+	p, _ := domain.PrincipalFromContext(r.Context())
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Me, mePageData{Principal: &p})
+}
 
-	err := c.users.Register(r.Context(), req.Username, req.Email, req.Password)
-	if errors.Is(err, domain.ErrUsernameBanned) {
-		c.log.Warn("banned username attempted", zap.String("username", req.Username))
+func (c *UserController) update(w http.ResponseWriter, r *http.Request) error {
+	if err := r.ParseForm(); err != nil {
+		return err
 	}
+	_, err := c.users.Update(r.Context(), domain.UpdateUserCommand{
+		Username:   r.FormValue("username"),
+		Email:      r.FormValue("email"),
+		Visibility: r.FormValue("visibility"),
+	})
 	if err != nil {
-		return err
+		p, _ := domain.PrincipalFromContext(r.Context())
+		return server.WriteHTML(w, http.StatusUnprocessableEntity, c.tmpl.Me, mePageData{Principal: &p, Error: err.Error()})
 	}
-
-	w.WriteHeader(http.StatusCreated)
+	http.Redirect(w, r, "/me", http.StatusSeeOther)
 	return nil
 }
 
-//	@Summary		Log in
-//	@Description	Returns a JWT to send as a bearer token.
-//	@Tags			user
-//	@Accept			json
-//	@Produce		plain
-//	@Param			body	body		loginRequest	true	"Credentials"
-//	@Success		200		{string}	string			"JWT"
-//	@Failure		400		{object}	server.ErrorResponse
-//	@Router			/api/v1/user/login [post]
-func (c *UserController) login(w http.ResponseWriter, r *http.Request) error {
-	var req loginRequest
-	if err := server.DecodeJSON(r, &req); err != nil {
-		return err
-	}
-
-	token, err := c.users.Login(r.Context(), req.Username, req.Password)
+func (c *UserController) delete(w http.ResponseWriter, r *http.Request) error {
+	disposition, err := domain.NewShaderDisposition(r.URL.Query().Get("shaderDisposition"))
 	if err != nil {
 		return err
 	}
-
-	// TODO: return JSON like every other route
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	_, err = w.Write([]byte(token))
-	return err
+	if err := c.users.Delete(r.Context(), disposition); err != nil {
+		return err
+	}
+	server.ClearSessionCookie(w)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+	return nil
 }
 
-//	@Summary	Get the current user
-//	@Tags		user
-//	@Produce	json
-//	@Security	BearerAuth
-//	@Success	200	{object}	userResponse
-//	@Failure	401	{object}	server.ErrorResponse
-//	@Router		/api/v1/user/me [get]
-func (c *UserController) me(w http.ResponseWriter, r *http.Request) error {
-	user, err := c.users.GetCurrent(r.Context())
+func (c *UserController) profile(w http.ResponseWriter, r *http.Request) error {
+	user, err := c.users.GetByUsername(r.Context(), r.PathValue("username"))
 	if err != nil {
 		return err
 	}
-
-	return server.WriteJSON(w, http.StatusOK, userResponse{
-		ID:                      string(user.ID),
-		CreatedAt:               user.CreatedAt,
-		UpdatedAt:               user.UpdatedAt,
-		Username:                string(user.Username),
-		Email:                   string(user.Email),
-		EmailVerificationStatus: string(user.EmailVerification),
-	})
+	var principal *domain.Principal
+	if p, ok := domain.PrincipalFromContext(r.Context()); ok {
+		principal = &p
+	}
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Profile, profilePageData{Principal: principal, User: user})
 }

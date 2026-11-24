@@ -1,0 +1,54 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - exhaustive
+    - errorlint
+    - nilerr
+    - nilnil
+    - forcetypeassert
+    - rowserrcheck
+    - bodyclose
+    - ineffassign
+    - unused
+    - unconvert
+    - unparam
+    - contextcheck
+    - goimports
+    - misspell
+    - prealloc
+    - durationcheck
+
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    goimports:
+      local-prefixes: github.com/sdedovic/wgsltoy-server
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+  exclude-rules:
+    - path: mock_.+\.go
+      linters:
+        - all
+
+    - path: _test\.go
+      linters:
+        - unparam
+        - forcetypeassert
+
+    # Integration tests commonly defer tx.Rollback without checking the error,
+    # since the rollback is a cleanup step and the test failure is already recorded.
+    - path: _test\.go
+      linters:
+        - errcheck
+      text: Rollback

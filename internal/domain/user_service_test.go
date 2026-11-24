@@ -23,7 +23,7 @@ func TestUserService_Register(t *testing.T) {
 		return nil
 	})
 
-	s := NewUserService(repo, hasher, NewMockTokenIssuer(ctrl))
+	s := NewUserService(repo, NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), hasher, NewMockSessionRepository(ctrl))
 	err := s.Register(context.Background(), "TestUser3", "testuser@wgsltoy.com", "valid-password123")
 	assert.NoError(t, err)
 }
@@ -98,7 +98,7 @@ func TestUserService_Register_FailValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// no expectations, so any dependency call fails the test
 			ctrl := gomock.NewController(t)
-			s := NewUserService(NewMockUserRepository(ctrl), NewMockPasswordHasher(ctrl), NewMockTokenIssuer(ctrl))
+			s := NewUserService(NewMockUserRepository(ctrl), NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), NewMockPasswordHasher(ctrl), NewMockSessionRepository(ctrl))
 
 			err := s.Register(context.Background(), tt.username, tt.email, tt.password)
 			assert.IsType(t, ValidationError{}, err)

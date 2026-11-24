@@ -11,6 +11,7 @@ import (
 	"github.com/sdedovic/wgsltoy-server/internal/persistence"
 	"github.com/sdedovic/wgsltoy-server/internal/security"
 	"github.com/sdedovic/wgsltoy-server/internal/server"
+	"github.com/sdedovic/wgsltoy-server/internal/views"
 	"go.uber.org/fx"
 	"go.uber.org/fx/fxevent"
 	"go.uber.org/zap"
@@ -25,16 +26,23 @@ var Module = fx.Options(
 		NewConfig,
 		newLogger,
 
-		fx.Annotate(newTxManager, fx.As(new(persistence.PGXProvider))),
-		fx.Annotate(persistence.NewUserRepository, fx.As(new(domain.UserRepository))),
-		fx.Annotate(persistence.NewShaderRepository, fx.As(new(domain.ShaderRepository))),
+		newPgClient,
+		persistence.NewTxManager,
+		persistence.NewUserRepository,
+		persistence.NewShaderRepository,
+		persistence.NewAuthRepository,
+		persistence.NewSessionRepository,
 		fx.Annotate(security.NewArgon2Hasher, fx.As(new(domain.PasswordHasher))),
-		fx.Annotate(newJWT, fx.As(new(domain.TokenIssuer)), fx.As(new(domain.TokenVerifier))),
+		domain.NewAuthService,
+		server.NewAuthMiddleware,
 
 		domain.NewUserService,
 		domain.NewShaderService,
 
+		newTemplates,
+
 		controller(controllers.NewHealthController),
+		controller(controllers.NewAuthController),
 		controller(controllers.NewUserController),
 		controller(controllers.NewShaderController),
 		fx.Annotate(server.NewHandler, fx.ParamTags(``, ``, `group:"controllers"`)),
@@ -49,24 +57,12 @@ func controller(constructor any) any {
 	return fx.Annotate(constructor, fx.As(new(server.Controller)), fx.ResultTags(`group:"controllers"`))
 }
 
-func newTxManager(lc fx.Lifecycle, config Config) (*persistence.TxManager, error) {
-	txManager, err := persistence.NewTxManager(config.DatabaseURL)
-	if err != nil {
-		return nil, err
-	}
-
-	lc.Append(fx.Hook{
-		OnStart: txManager.Ping,
-		OnStop: func(context.Context) error {
-			txManager.Close()
-			return nil
-		},
-	})
-	return txManager, nil
+func newPgClient(lc fx.Lifecycle, config Config) (persistence.PgClient, error) {
+	return persistence.NewPgClient(lc, config.DatabaseURL)
 }
 
-func newJWT(config Config) *security.JWT {
-	return security.NewJWT(config.AppSecret)
+func newTemplates(config Config) (*views.Templates, error) {
+	return views.NewTemplates(config.TemplateDir)
 }
 
 func newHTTPServer(lc fx.Lifecycle, config Config, log *zap.Logger, handler http.Handler) *http.Server {
