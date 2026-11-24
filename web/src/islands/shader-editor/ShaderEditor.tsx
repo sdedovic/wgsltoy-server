@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent } from "rea
 import { showDiagnostics } from "../../editor/extensions.ts";
 import styles from "./ShaderEditor.module.css";
 import { useCodeMirror } from "./use-code-mirror.ts";
+import { usePageTop } from "./use-page-top.ts";
 import { useShaderRenderer } from "./use-shader-renderer.ts";
 
 export interface ShaderEditorProps {
@@ -11,11 +12,13 @@ export interface ShaderEditorProps {
 }
 
 export function ShaderEditor({ initialCode, onChange }: ShaderEditorProps) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const editorParentRef = useRef<HTMLDivElement>(null);
   const gpu = useShaderRenderer(canvasRef);
   const renderer = gpu.status === "ready" ? gpu.renderer : undefined;
   const [playing, setPlaying] = useState(true);
+  usePageTop(rootRef);
 
   const editorRef = useCodeMirror(editorParentRef, initialCode, {
     onCompile: () => void compile(),
@@ -55,7 +58,7 @@ export function ShaderEditor({ initialCode, onChange }: ShaderEditorProps) {
   };
 
   return (
-    <div className={styles.shaderEditor}>
+    <div ref={rootRef} className={styles.shaderEditor}>
       <div className={styles.preview}>
         <canvas
           ref={canvasRef}

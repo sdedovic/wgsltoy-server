@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"crypto/subtle"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -44,6 +45,15 @@ var usernameBlacklist = []string{
 var ErrUsernameBanned = NewValidationError("Supplied username is not permitted!")
 
 var ErrUsernameTaken = NewValidationError("Username is already taken!")
+
+var ErrBadInviteCode = NewValidationError("Supplied invite code is not valid!")
+
+// InviteCode is the code needed to register. Empty means registration is open.
+type InviteCode string
+
+func (c InviteCode) Accepts(s string) bool {
+	return c == "" || subtle.ConstantTimeCompare([]byte(c), []byte(s)) == 1
+}
 
 type Username string
 

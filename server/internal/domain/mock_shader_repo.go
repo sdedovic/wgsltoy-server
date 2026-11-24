@@ -68,6 +68,34 @@ func (mr *MockShaderRepositoryMockRecorder) DeleteByIDAndOwner(ctx, id, owner an
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByIDAndOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeleteByIDAndOwner), ctx, id, owner)
 }
 
+// DeleteByOwner mocks base method.
+func (m *MockShaderRepository) DeleteByOwner(ctx context.Context, owner UserID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteByOwner", ctx, owner)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteByOwner indicates an expected call of DeleteByOwner.
+func (mr *MockShaderRepositoryMockRecorder) DeleteByOwner(ctx, owner any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeleteByOwner), ctx, owner)
+}
+
+// DeletePrivateByOwner mocks base method.
+func (m *MockShaderRepository) DeletePrivateByOwner(ctx context.Context, owner UserID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeletePrivateByOwner", ctx, owner)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeletePrivateByOwner indicates an expected call of DeletePrivateByOwner.
+func (mr *MockShaderRepositoryMockRecorder) DeletePrivateByOwner(ctx, owner any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePrivateByOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeletePrivateByOwner), ctx, owner)
+}
+
 // FindByID mocks base method.
 func (m *MockShaderRepository) FindByID(ctx context.Context, id ShaderID) (Shader, error) {
 	m.ctrl.T.Helper()
@@ -98,6 +126,21 @@ func (mr *MockShaderRepositoryMockRecorder) FindByIDAndOwner(ctx, id, owner any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByIDAndOwner", reflect.TypeOf((*MockShaderRepository)(nil).FindByIDAndOwner), ctx, id, owner)
 }
 
+// FindRandomPublic mocks base method.
+func (m *MockShaderRepository) FindRandomPublic(ctx context.Context, limit int) ([]Shader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindRandomPublic", ctx, limit)
+	ret0, _ := ret[0].([]Shader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindRandomPublic indicates an expected call of FindRandomPublic.
+func (mr *MockShaderRepositoryMockRecorder) FindRandomPublic(ctx, limit any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRandomPublic", reflect.TypeOf((*MockShaderRepository)(nil).FindRandomPublic), ctx, limit)
+}
+
 // FindTop100ByCreatedByOrderByUpdatedAtDesc mocks base method.
 func (m *MockShaderRepository) FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx context.Context, createdBy UserID) ([]ShaderSummary, error) {
 	m.ctrl.T.Helper()
@@ -126,34 +169,6 @@ func (m *MockShaderRepository) FindTop100PublicOrderByUpdatedAtDesc(ctx context.
 func (mr *MockShaderRepositoryMockRecorder) FindTop100PublicOrderByUpdatedAtDesc(ctx any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTop100PublicOrderByUpdatedAtDesc", reflect.TypeOf((*MockShaderRepository)(nil).FindTop100PublicOrderByUpdatedAtDesc), ctx)
-}
-
-// DeleteByOwner mocks base method.
-func (m *MockShaderRepository) DeleteByOwner(ctx context.Context, owner UserID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteByOwner", ctx, owner)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteByOwner indicates an expected call of DeleteByOwner.
-func (mr *MockShaderRepositoryMockRecorder) DeleteByOwner(ctx, owner any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteByOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeleteByOwner), ctx, owner)
-}
-
-// DeletePrivateByOwner mocks base method.
-func (m *MockShaderRepository) DeletePrivateByOwner(ctx context.Context, owner UserID) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeletePrivateByOwner", ctx, owner)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeletePrivateByOwner indicates an expected call of DeletePrivateByOwner.
-func (mr *MockShaderRepositoryMockRecorder) DeletePrivateByOwner(ctx, owner any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePrivateByOwner", reflect.TypeOf((*MockShaderRepository)(nil).DeletePrivateByOwner), ctx, owner)
 }
 
 // Save mocks base method.

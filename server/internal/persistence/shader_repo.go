@@ -237,6 +237,37 @@ func (r *shaderRepository) FindTop100PublicOrderByUpdatedAtDesc(ctx context.Cont
 	return summaries, nil
 }
 
+// ORDER BY random() sorts the whole table, fine while there are few public shaders.
+func (r *shaderRepository) FindRandomPublic(ctx context.Context, limit int) ([]domain.Shader, error) {
+	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
+	defer cancel()
+
+	sql, args, err := selectShaders(shaderSelectColumns).
+		Where(squirrel.Eq{"s.visibility": string(domain.VisibilityPublic)}).
+		OrderBy("random()").
+		Limit(uint64(limit)).
+		ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed building sql caused by: %w", err)
+	}
+
+	rows, err := getClient(ctx, r.db).Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed querying shaders caused by: %w", err)
+	}
+
+	shaderRows, err := pgx.CollectRows(rows, pgx.RowToStructByName[shaderRow])
+	if err != nil {
+		return nil, fmt.Errorf("failed querying shaders caused by: %w", err)
+	}
+
+	shaders := make([]domain.Shader, len(shaderRows))
+	for i, row := range shaderRows {
+		shaders[i] = row.toDomain()
+	}
+	return shaders, nil
+}
+
 func (r *shaderRepository) DeleteByIDAndOwner(ctx context.Context, id domain.ShaderID, owner domain.UserID) error {
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()

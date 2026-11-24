@@ -156,3 +156,8 @@ func (s *ShaderService) ListMine(ctx context.Context) ([]ShaderSummary, error) {
 func (s *ShaderService) ListPublic(ctx context.Context) ([]ShaderSummary, error) {
 	return s.repo.FindTop100PublicOrderByUpdatedAtDesc(ctx)
 }
+
+// ListRandomPublic picks up to n public shaders at random, with their content so they can be previewed.
+func (s *ShaderService) ListRandomPublic(ctx context.Context, n int) ([]Shader, error) {
+	return s.repo.FindRandomPublic(ctx, n)
+}

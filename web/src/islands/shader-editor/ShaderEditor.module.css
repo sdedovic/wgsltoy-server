@@ -1,12 +1,24 @@
+/*
+ * The editor ends at 85% of the viewport, below whatever is above it on the page (--page-top, set by
+ * usePageTop). A page can make it smaller with --editor-max-height. Toolbars have a fixed height so the
+ * canvas and code can be sized to fit around them.
+ */
 .shaderEditor {
+  --max-height: var(--editor-max-height, 100vh);
+  --height: max(300px, min(var(--max-height), calc(85vh - var(--page-top, 0px))));
+  --height: max(300px, min(var(--max-height), calc(85dvh - var(--page-top, 0px))));
+  --toolbar-height: 2.5rem;
+
   display: flex;
-  flex-flow: row wrap;
   gap: var(--space-3);
   align-items: flex-start;
 }
 
+/* the canvas is a square half the screen wide, the code takes the rest. It shrinks to fit the height */
 .preview {
-  flex: 0 1 600px;
+  --size: min(50vw, calc(var(--height) - var(--toolbar-height) - var(--space-2)));
+
+  flex: 0 0 var(--size);
   min-width: 300px;
   display: flex;
   flex-direction: column;
@@ -24,27 +36,32 @@
 .code {
   flex: 1 1 400px;
   min-width: 300px;
+  height: var(--height);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
 }
 
+/* takes the height left by the toolbar, so long code scrolls inside the editor instead of growing the page */
 .editor {
+  flex-grow: 1;
+  min-height: 0;
   border: var(--border);
   background: var(--color-surface);
-  min-height: 300px;
 
   & :global(.cm-editor) {
     height: 100%;
-    min-height: 300px;
   }
 }
 
 .toolbar {
   display: flex;
   gap: var(--space-2);
+  height: var(--toolbar-height);
+  flex-shrink: 0;
 
   & button {
+    height: 100%;
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
@@ -53,6 +70,35 @@
   & kbd {
     font-size: 0.75em;
     color: var(--color-muted);
+  }
+}
+
+/*
+ * Below this the code would get less than 400px beside the canvas, so they stack. The canvas fits on screen,
+ * and the code is only as tall as it is, scrolling past 85% of the viewport.
+ */
+@media (width < 1000px) {
+  .shaderEditor {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .preview {
+    --size: min(100%, calc(min(var(--max-height), 85dvh) - var(--toolbar-height) - var(--space-2)));
+
+    flex: none;
+    width: var(--size);
+  }
+
+  .code {
+    flex: none;
+    height: auto;
+  }
+
+  .editor :global(.cm-editor) {
+    height: auto;
+    max-height: calc(min(var(--max-height), 85vh) - var(--toolbar-height) - var(--space-2));
+    max-height: calc(min(var(--max-height), 85dvh) - var(--toolbar-height) - var(--space-2));
   }
 }
 

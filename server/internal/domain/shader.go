@@ -78,8 +78,11 @@ func NewShaderDescription(s string) (ShaderDescription, error) {
 
 type ShaderContent string
 
+// Room for a long shader, while still well under the request body limit (1 MiB) at 4 bytes a character.
+const maxShaderContentLength = 65536
+
 func NewShaderContent(s string) (ShaderContent, error) {
-	if utf8.RuneCountInString(s) > 5250 {
+	if utf8.RuneCountInString(s) > maxShaderContentLength {
 		return "", NewValidationError("Field 'content' is too long!")
 	}
 	if s != "" && !displayMultilineRegex.MatchString(s) {

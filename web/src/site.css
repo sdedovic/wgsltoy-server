@@ -127,6 +127,110 @@
     margin: 0 var(--space-4);
   }
 
+  .icon-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .home {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    padding-top: var(--space-3);
+  }
+
+  /* the home page editor is a taste, so it's kept smaller than on a shader's page */
+  .home-editor {
+    --editor-max-height: 480px;
+
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+
+    & p {
+      margin: 0;
+    }
+  }
+
+  .new-shader-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+
+  .section-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    border-bottom: 2px solid var(--color-line);
+    padding-bottom: var(--space-1);
+
+    & h2 {
+      margin: 0;
+    }
+  }
+
+  .recent-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0 var(--space-4);
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    list-style: none;
+
+    & li {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-2);
+      padding: var(--space-2) 0;
+      border-bottom: 1px solid var(--color-line);
+    }
+
+    & li > a:first-child {
+      font-weight: 600;
+    }
+
+    & li > a:not(:first-child) {
+      color: var(--color-muted);
+    }
+  }
+
+  .shader-grid {
+    display: grid;
+    /* auto-fit drops empty columns and the max keeps cards from stretching, so the row can center */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 240px));
+    justify-content: center;
+    gap: var(--space-3);
+    margin: var(--space-3) 0;
+    padding: 0;
+    list-style: none;
+
+    & li {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+    }
+
+    & li > a:first-child {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-1);
+      font-weight: bold;
+      text-decoration: none;
+    }
+
+    & li > a:not(:first-child) {
+      color: var(--color-muted);
+      font-size: 0.875em;
+    }
+  }
+
   .site-footer {
     display: flex;
     flex-direction: column;

@@ -1,26 +1,66 @@
+{{define "head"}}{{vite "src/editor.tsx"}}{{vite "src/gallery.tsx"}}{{end}}
 {{define "content"}}
-<h1>Shaders</h1>
-{{if .Principal}}
-<form method="post" action="{{shadersURL}}">
-    <input name="name" placeholder="shader name" required>
-    <select name="visibility">
-        <option value="public">public</option>
-        <option value="unlisted">unlisted</option>
-        <option value="private">private</option>
-    </select>
-    <button type="submit">create new shader</button>
-</form>
+<div class="home">
+<section id="new-shader" class="home-editor">
+    {{if .Principal}}
+    <p>Edit the code and press <kbd>Ctrl+Enter</kbd> to run it, then save it as a new shader.</p>
+    {{else}}
+    <p>Try it: edit the code and press <kbd>Ctrl+Enter</kbd> to run it. <a href="{{registerURL}}">Register</a> or <a href="{{loginURL}}">log in</a> to save and share.</p>
+    {{end}}
+    <div data-island="shader-editor" data-source="shader-content"></div>
+    {{/* starts empty, so the editor fills in the default shader */}}
+    <textarea id="shader-content" name="content" form="new-shader-form" hidden></textarea>
+    {{if .Principal}}
+    <form id="new-shader-form" class="new-shader-form" method="post" action="{{shadersURL}}">
+        <label>Name<br><input name="name" placeholder="my shader" required></label>
+        <label>Visibility<br>
+        <select name="visibility">
+            <option value="public">public</option>
+            <option value="unlisted">unlisted</option>
+            <option value="private">private</option>
+        </select>
+        </label>
+        <button type="submit">save as new shader</button>
+    </form>
+    {{end}}
+</section>
+
+{{if .Featured}}
+<section>
+    <div class="section-header">
+        <h2>Random from the gallery</h2>
+    </div>
+    <ul class="shader-grid">
+    {{range .Featured}}
+    <li>
+        <a href="{{shaderURL .ID}}">
+            <div data-island="shader-preview" data-source="preview-{{.ID}}"></div>
+            <span>{{.Name}}</span>
+        </a>
+        {{with .Author}}<a href="{{userURL .Username}}">{{.Username}}</a>{{end}}
+        <textarea id="preview-{{.ID}}" hidden>{{.Content}}</textarea>
+    </li>
+    {{end}}
+    </ul>
+</section>
 {{end}}
-{{if .Shaders}}
-<ul>
-{{range .Shaders}}
-<li>
-    <a href="{{shaderURL .ID}}">{{.Name}}</a>
-    {{with .Author}}&mdash; <a href="{{userURL .Username}}">{{.Username}}</a>{{end}}
-</li>
-{{end}}
-</ul>
-{{else}}
-<p>No public shaders yet.</p>
-{{end}}
+
+<section>
+    <div class="section-header">
+        <h2>Recently updated</h2>
+    </div>
+    {{if .Shaders}}
+    <ul class="recent-list">
+    {{range .Shaders}}
+    <li>
+        <a href="{{shaderURL .ID}}">{{.Name}}</a>
+        {{with .Author}}<a href="{{userURL .Username}}">{{.Username}}</a>{{end}}
+    </li>
+    {{end}}
+    </ul>
+    {{else}}
+    <p>No public shaders yet.</p>
+    {{end}}
+</section>
+</div>
 {{end}}

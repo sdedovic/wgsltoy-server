@@ -22,3 +22,7 @@ static:
 # Vite dev server; when set, pages load the frontend from it instead of static.dir
 vite:
   url: ""
+
+# needed to register; when empty, anyone can
+invite:
+  code: ""

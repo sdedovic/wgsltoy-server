@@ -27,8 +27,12 @@ func (c *ShaderController) Register(router *server.Router) {
 	router.Handle("GET", legacyShaderEditorRoute, http.HandlerFunc(c.moved))
 }
 
+// how many random shaders the home page previews
+const featuredCount = 6
+
 type galleryPageData struct {
 	Principal *domain.Principal
+	Featured  []domain.Shader
 	Shaders   []domain.ShaderSummary
 }
 
@@ -56,10 +60,18 @@ func (c *ShaderController) gallery(w http.ResponseWriter, r *http.Request) error
 	if err != nil {
 		return err
 	}
-	return server.Respond(w, r, http.StatusOK, c.tmpl.Gallery, galleryPageData{
+	if server.WantsJSON(r) {
+		return server.WriteJSON(w, http.StatusOK, newGalleryDTO(shaders))
+	}
+	featured, err := c.shaders.ListRandomPublic(r.Context(), featuredCount)
+	if err != nil {
+		return err
+	}
+	return server.WriteHTML(w, http.StatusOK, c.tmpl.Gallery, galleryPageData{
 		Principal: principalPtr(r),
+		Featured:  featured,
 		Shaders:   shaders,
-	}, newGalleryDTO(shaders))
+	})
 }
 
 // @Summary		Get a shader

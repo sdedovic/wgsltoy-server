@@ -10,6 +10,7 @@ type ShaderRepository interface {
 	FindByIDAndOwner(ctx context.Context, id ShaderID, owner UserID) (Shader, error)
 	FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx context.Context, createdBy UserID) ([]ShaderSummary, error)
 	FindTop100PublicOrderByUpdatedAtDesc(ctx context.Context) ([]ShaderSummary, error)
+	FindRandomPublic(ctx context.Context, limit int) ([]Shader, error)
 	DeleteByIDAndOwner(ctx context.Context, id ShaderID, owner UserID) error
 	DeleteByID(ctx context.Context, id ShaderID) error
 	DeleteByOwner(ctx context.Context, owner UserID) error

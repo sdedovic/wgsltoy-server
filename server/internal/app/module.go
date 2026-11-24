@@ -37,6 +37,7 @@ var Module = fx.Options(
 		domain.NewAuthService,
 		server.NewAuthMiddleware,
 
+		newInviteCode,
 		domain.NewUserService,
 		domain.NewShaderService,
 
@@ -62,6 +63,10 @@ func controller(constructor any) any {
 
 func newPgClient(lc fx.Lifecycle, config Config) (persistence.PgClient, error) {
 	return persistence.NewPgClient(lc, config.DatabaseURL)
+}
+
+func newInviteCode(config Config) domain.InviteCode {
+	return domain.InviteCode(config.InviteCode)
 }
 
 func newVite(config Config) (*views.Vite, error) {

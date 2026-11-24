@@ -32,10 +32,11 @@ type UserService struct {
 	tx       Transactor
 	hasher   PasswordHasher
 	sessions SessionRepository
+	invite   InviteCode
 }
 
-func NewUserService(repo UserRepository, shaders ShaderRepository, tx Transactor, hasher PasswordHasher, sessions SessionRepository) *UserService {
-	return &UserService{repo, shaders, tx, hasher, sessions}
+func NewUserService(repo UserRepository, shaders ShaderRepository, tx Transactor, hasher PasswordHasher, sessions SessionRepository, invite InviteCode) *UserService {
+	return &UserService{repo, shaders, tx, hasher, sessions, invite}
 }
 
 type UpdateUserCommand struct {
@@ -44,7 +45,11 @@ type UpdateUserCommand struct {
 	Visibility string
 }
 
-func (s *UserService) Register(ctx context.Context, username string, email string, password string) error {
+func (s *UserService) Register(ctx context.Context, username string, email string, password string, inviteCode string) error {
+	// checked first, so without a code nothing else about registering can be learned
+	if !s.invite.Accepts(inviteCode) {
+		return ErrBadInviteCode
+	}
 	validUsername, err := NewUsername(username)
 	if err != nil {
 		return err

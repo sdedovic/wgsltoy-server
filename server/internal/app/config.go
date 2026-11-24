@@ -23,6 +23,8 @@ type Config struct {
 	StaticDir   string
 	// ViteURL is the Vite dev server pages load the frontend from, if set. Otherwise it's served from StaticDir.
 	ViteURL string
+	// InviteCode is needed to register, if set. Otherwise anyone can.
+	InviteCode string
 }
 
 // rawConfig mirrors the keys in application.yaml.
@@ -34,6 +36,7 @@ type rawConfig struct {
 	TemplateDir string `koanf:"templates.dir"`
 	StaticDir   string `koanf:"static.dir"`
 	ViteURL     string `koanf:"vite.url"`
+	InviteCode  string `koanf:"invite.code"`
 }
 
 func NewConfig() (Config, error) {
@@ -90,5 +93,6 @@ func loadConfig(dir, profile string, environ func() []string) (Config, error) {
 		TemplateDir: raw.TemplateDir,
 		StaticDir:   raw.StaticDir,
 		ViteURL:     raw.ViteURL,
+		InviteCode:  raw.InviteCode,
 	}, nil
 }

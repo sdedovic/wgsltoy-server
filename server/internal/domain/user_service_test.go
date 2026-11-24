@@ -23,9 +23,27 @@ func TestUserService_Register(t *testing.T) {
 		return nil
 	})
 
-	s := NewUserService(repo, NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), hasher, NewMockSessionRepository(ctrl))
-	err := s.Register(context.Background(), "TestUser3", "testuser@wgsltoy.com", "valid-password123")
+	s := NewUserService(repo, NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), hasher, NewMockSessionRepository(ctrl), "invite")
+	err := s.Register(context.Background(), "TestUser3", "testuser@wgsltoy.com", "valid-password123", "invite")
 	assert.NoError(t, err)
+}
+
+func TestUserService_Register_BadInviteCode(t *testing.T) {
+	for name, code := range map[string]string{"wrong": "nope", "missing": ""} {
+		t.Run(name, func(t *testing.T) {
+			// no expectations, so any dependency call fails the test
+			ctrl := gomock.NewController(t)
+			s := NewUserService(NewMockUserRepository(ctrl), NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), NewMockPasswordHasher(ctrl), NewMockSessionRepository(ctrl), "invite")
+
+			err := s.Register(context.Background(), "TestUser3", "testuser@wgsltoy.com", "valid-password123", code)
+			assert.ErrorIs(t, err, ErrBadInviteCode)
+		})
+	}
+}
+
+func TestInviteCode_EmptyAcceptsAnything(t *testing.T) {
+	assert.True(t, InviteCode("").Accepts(""))
+	assert.True(t, InviteCode("").Accepts("anything"))
 }
 
 func TestUserService_Register_FailValidation(t *testing.T) {
@@ -98,9 +116,9 @@ func TestUserService_Register_FailValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// no expectations, so any dependency call fails the test
 			ctrl := gomock.NewController(t)
-			s := NewUserService(NewMockUserRepository(ctrl), NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), NewMockPasswordHasher(ctrl), NewMockSessionRepository(ctrl))
+			s := NewUserService(NewMockUserRepository(ctrl), NewMockShaderRepository(ctrl), NewMockTransactor(ctrl), NewMockPasswordHasher(ctrl), NewMockSessionRepository(ctrl), "")
 
-			err := s.Register(context.Background(), tt.username, tt.email, tt.password)
+			err := s.Register(context.Background(), tt.username, tt.email, tt.password, "")
 			assert.IsType(t, ValidationError{}, err)
 		})
 	}

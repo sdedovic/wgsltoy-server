@@ -29,7 +29,7 @@ func TestPagesRenderWithTheirData(t *testing.T) {
 				page *views.Page
 				data any
 			}{
-				"gallery":         {tmpl.Gallery, galleryPageData{Principal: principal, Shaders: []domain.ShaderSummary{shader.ShaderSummary}}},
+				"gallery":         {tmpl.Gallery, galleryPageData{Principal: principal, Featured: []domain.Shader{shader}, Shaders: []domain.ShaderSummary{shader.ShaderSummary}}},
 				"login":           {tmpl.Login, loginPageData{Principal: principal, Error: "bad login"}},
 				"register":        {tmpl.Register, registerPageData{Principal: principal, Error: "taken"}},
 				"profile":         {tmpl.Profile, profilePageData{Principal: principal, Profile: signedIn.User.ProfileFor(*signedIn)}},
@@ -55,7 +55,8 @@ func builtVite(t *testing.T) *views.Vite {
 	dir := t.TempDir()
 	manifest := `{
 		"src/site.ts": {"file": "assets/site-abc.js", "isEntry": true, "css": ["assets/site-abc.css"]},
-		"src/editor.tsx": {"file": "assets/editor-abc.js", "isEntry": true}
+		"src/editor.tsx": {"file": "assets/editor-abc.js", "isEntry": true},
+		"src/gallery.tsx": {"file": "assets/gallery-abc.js", "isEntry": true}
 	}`
 	if err := os.MkdirAll(filepath.Join(dir, ".vite"), 0o755); err != nil {
 		t.Fatal(err)

@@ -33,7 +33,7 @@ function reloadOnServerRestart(): Plugin {
 
 export default defineConfig({
   base: "/static/",
-  input: ["src/site.ts", "src/editor.tsx"],
+  input: ["src/site.ts", "src/editor.tsx", "src/gallery.tsx"],
   plugins: [react(), patchCssModules({ generateSourceTypes: true }), reloadOnServerRestart()],
   server: {
     port: 5173,

@@ -61,3 +61,13 @@ func TestLoadConfig_UnknownProfile(t *testing.T) {
 		t.Error("expected error for missing profile file")
 	}
 }
+
+func TestLoadConfig_InviteCodeFromEnv(t *testing.T) {
+	config, err := loadConfig("../..", "dev", environ("INVITE_CODE=letmein"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.InviteCode != "letmein" {
+		t.Errorf("expected invite code from env, got %q", config.InviteCode)
+	}
+}

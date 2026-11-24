@@ -24,9 +24,6 @@
     <div>
         <label>Description<br><textarea name="description">{{.Shader.Description}}</textarea></label>
     </div>
-    <div>
-        <label>Tags (comma separated)<br><input name="tags" data-split="," value="{{range $i, $t := .Shader.Tags}}{{if $i}},{{end}}{{$t}}{{end}}"></label>
-    </div>
     <button type="submit">save</button>
 </form>
 <form action="{{shaderURL .Shader.ID}}" data-method="DELETE" data-redirect="{{homeURL}}" data-confirm="Delete this shader? This can't be undone.">

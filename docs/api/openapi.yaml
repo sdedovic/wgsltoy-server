@@ -68,6 +68,8 @@ components:
       properties:
         email:
           type: string
+        inviteCode:
+          type: string
         password:
           type: string
         username:
@@ -424,6 +426,7 @@ paths:
       - auth
     post:
       description: The account starts with an unverified email, and isn't signed in.
+        Needs the invite code, when one is configured.
       requestBody:
         content:
           application/json:

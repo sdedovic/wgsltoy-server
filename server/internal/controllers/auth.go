@@ -124,7 +124,7 @@ func (c *AuthController) registerPage(w http.ResponseWriter, r *http.Request) er
 }
 
 // @Summary		Create an account
-// @Description	The account starts with an unverified email, and isn't signed in.
+// @Description	The account starts with an unverified email, and isn't signed in. Needs the invite code, when one is configured.
 // @Tags			auth
 // @Accept			json,x-www-form-urlencoded,mpfd
 // @Produce		json
@@ -142,7 +142,7 @@ func (c *AuthController) register(w http.ResponseWriter, r *http.Request) error 
 		return err
 	}
 
-	err := c.users.Register(r.Context(), req.Username, req.Email, req.Password)
+	err := c.users.Register(r.Context(), req.Username, req.Email, req.Password, req.InviteCode)
 	if err != nil {
 		if errors.Is(err, domain.ErrUsernameBanned) {
 			c.log.Warn("banned username attempted", zap.String("username", req.Username))

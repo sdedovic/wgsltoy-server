@@ -27,9 +27,10 @@ type loginDTO struct {
 } // @name Login
 
 type registerDTO struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	InviteCode string `json:"inviteCode"`
 } // @name Register
 
 type updateMeDTO struct {
