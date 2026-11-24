@@ -1,0 +1,12 @@
+# Local development, loaded with APP_PROFILE=dev. Matches ./scripts/start-local-pg.sh.
+app:
+  secret: test
+
+database:
+  url: postgres://postgres:postgres@localhost:5432/default?sslmode=disable
+
+log:
+  development: true
+
+vite:
+  url: http://localhost:5173

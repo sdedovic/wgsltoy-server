@@ -1,0 +1,26 @@
+{{define "content"}}
+<h1>Shaders</h1>
+{{if .Principal}}
+<form method="post" action="/shader">
+    <input name="name" placeholder="shader name" required>
+    <select name="visibility">
+        <option value="public">public</option>
+        <option value="unlisted">unlisted</option>
+        <option value="private">private</option>
+    </select>
+    <button type="submit">create new shader</button>
+</form>
+{{end}}
+{{if .Shaders}}
+<ul>
+{{range .Shaders}}
+<li>
+    <a href="/shader/{{.ID}}">{{.Name}}</a>
+    {{if .CreatedBy}}&mdash; <a href="/{{.CreatedBy}}">{{.CreatedBy}}</a>{{end}}
+</li>
+{{end}}
+</ul>
+{{else}}
+<p>No public shaders yet.</p>
+{{end}}
+{{end}}

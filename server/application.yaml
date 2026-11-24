@@ -1,0 +1,24 @@
+# Defaults for every environment. Every key must be declared here, even if empty,
+# to be overridable by an environment variable: database.url <- DATABASE_URL.
+app:
+  secret: ""
+
+server:
+  port: 8080
+
+database:
+  url: ""
+
+log:
+  development: false
+
+templates:
+  dir: ../web/templates
+
+# output of `vite build`, served at /static/
+static:
+  dir: ../web/dist
+
+# Vite dev server; when set, pages load the frontend from it instead of static.dir
+vite:
+  url: ""

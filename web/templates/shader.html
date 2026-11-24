@@ -1,0 +1,33 @@
+{{define "title"}}{{.Shader.Name}} &middot; WGSL Toy{{end}}
+{{define "head"}}{{vite "src/editor.tsx"}}{{end}}
+{{define "content"}}
+<h1>{{.Shader.Name}}</h1>
+{{if .Shader.CreatedBy}}<p>by <a href="/{{.Shader.CreatedBy}}">{{.Shader.CreatedBy}}</a></p>{{end}}
+{{if .Shader.Description}}<p>{{.Shader.Description}}</p>{{end}}
+<div data-island="shader-editor" data-source="shader-content"></div>
+{{/* submitted with editor-form, when there is one */}}
+<textarea id="shader-content" name="content" form="editor-form" hidden>{{.Shader.Content}}</textarea>
+{{if .CanEdit}}
+<form id="editor-form" data-shader-id="{{.Shader.ID}}">
+    <div>
+        <label>Name<br><input name="name" value="{{.Shader.Name}}" required></label>
+    </div>
+    <div>
+        <label>Visibility<br>
+        <select name="visibility">
+            <option value="public" {{if eq (print .Shader.Visibility) "public"}}selected{{end}}>public</option>
+            <option value="unlisted" {{if eq (print .Shader.Visibility) "unlisted"}}selected{{end}}>unlisted</option>
+            <option value="private" {{if eq (print .Shader.Visibility) "private"}}selected{{end}}>private</option>
+        </select>
+        </label>
+    </div>
+    <div>
+        <label>Description<br><textarea name="description">{{.Shader.Description}}</textarea></label>
+    </div>
+    <div>
+        <label>Tags (comma separated)<br><input name="tags" value="{{range $i, $t := .Shader.Tags}}{{if $i}},{{end}}{{$t}}{{end}}"></label>
+    </div>
+    <button type="submit">save</button>
+</form>
+{{end}}
+{{end}}

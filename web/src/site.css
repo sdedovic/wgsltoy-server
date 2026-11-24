@@ -1,0 +1,145 @@
+/* Global styles for the server rendered pages. Islands style themselves with CSS Modules. */
+@layer reset, base, layout;
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --color-text: #111;
+    --color-muted: #666;
+    --color-background: #eee;
+    --color-surface: #f6f6f6;
+    --color-line: lightgrey;
+    --color-error: #b00;
+    --color-error-surface: #fbb;
+    --border: 1px solid var(--color-text);
+    --radius: 5px;
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 1rem;
+    --space-4: 2rem;
+    --font-body: system-ui, sans-serif;
+    --font-code: ui-monospace, monospace;
+  }
+
+  body {
+    font-family: var(--font-body);
+    color: var(--color-text);
+    background: var(--color-background);
+  }
+
+  a {
+    color: inherit;
+  }
+
+  button {
+    font: inherit;
+    padding: var(--space-1) var(--space-2);
+    border: 2px solid var(--color-text);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: #e2f2e2;
+    }
+
+    &:active:not(:disabled) {
+      background: #c2f2c2;
+    }
+
+    &:disabled {
+      cursor: default;
+      opacity: 0.5;
+    }
+  }
+
+  pre,
+  code,
+  kbd {
+    font-family: var(--font-code);
+  }
+
+  .icon {
+    width: 1.5em;
+    height: 1.5em;
+    vertical-align: middle;
+  }
+
+  .error {
+    color: var(--color-error);
+  }
+}
+
+@layer layout {
+  .site {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+
+  .site-header {
+    display: flex;
+    flex-flow: row wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    margin: 0 var(--space-3) var(--space-2);
+    border-bottom: 2px solid var(--color-text);
+
+    & h1 {
+      margin: var(--space-2) 0;
+    }
+
+    & h1 a {
+      text-decoration: none;
+    }
+
+    & .wip {
+      font-size: 14px;
+      vertical-align: super;
+    }
+
+    & nav {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    & form {
+      display: inline;
+    }
+  }
+
+  .site-content {
+    flex-grow: 1;
+    margin: 0 var(--space-4);
+  }
+
+  .site-footer {
+    display: flex;
+    flex-direction: column;
+    margin: var(--space-3) 5rem var(--space-2);
+    padding: var(--space-2) 0;
+    border-top: 2px solid var(--color-line);
+
+    & section {
+      display: flex;
+      flex-flow: row wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 0 var(--space-3);
+    }
+  }
+}

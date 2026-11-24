@@ -1,0 +1,63 @@
+.shaderEditor {
+  display: flex;
+  flex-flow: row wrap;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.preview {
+  flex: 0 1 600px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.canvas {
+  width: 100%;
+  aspect-ratio: 1;
+  background: black;
+  border: var(--border);
+  touch-action: none;
+}
+
+.code {
+  flex: 1 1 400px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.editor {
+  border: var(--border);
+  background: var(--color-surface);
+  min-height: 300px;
+
+  & :global(.cm-editor) {
+    height: 100%;
+    min-height: 300px;
+  }
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+
+  & button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  & kbd {
+    font-size: 0.75em;
+    color: var(--color-muted);
+  }
+}
+
+.notice {
+  padding: var(--space-3);
+  border: var(--border);
+  background: var(--color-error-surface);
+}
