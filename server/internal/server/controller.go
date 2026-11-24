@@ -2,8 +2,6 @@
 
 package server
 
-import "net/http"
-
 type Controller interface {
-	Register(mux *http.ServeMux)
+	Register(router *Router)
 }

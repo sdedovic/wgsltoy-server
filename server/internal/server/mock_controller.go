@@ -10,7 +10,6 @@
 package server
 
 import (
-	http "net/http"
 	reflect "reflect"
 
 	gomock "go.uber.org/mock/gomock"
@@ -41,13 +40,13 @@ func (m *MockController) EXPECT() *MockControllerMockRecorder {
 }
 
 // Register mocks base method.
-func (m *MockController) Register(mux *http.ServeMux) {
+func (m *MockController) Register(router *Router) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Register", mux)
+	m.ctrl.Call(m, "Register", router)
 }
 
 // Register indicates an expected call of Register.
-func (mr *MockControllerMockRecorder) Register(mux any) *gomock.Call {
+func (mr *MockControllerMockRecorder) Register(router any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockController)(nil).Register), mux)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Register", reflect.TypeOf((*MockController)(nil).Register), router)
 }

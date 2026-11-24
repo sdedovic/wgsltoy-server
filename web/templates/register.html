@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Register</h1>
 {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
-<form method="post" action="/register">
+<form method="post" action="{{registerURL}}">
     <div>
         <label>Username<br><input name="username" required autofocus></label>
     </div>
@@ -12,6 +12,6 @@
         <label>Password<br><input name="password" type="password" required></label>
     </div>
     <button type="submit">register</button>
-    <a href="/login">already have an account?</a>
+    <a href="{{loginURL}}">already have an account?</a>
 </form>
 {{end}}

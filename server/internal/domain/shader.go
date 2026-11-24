@@ -110,10 +110,15 @@ func NewShaderTags(tags []string) (ShaderTags, error) {
 
 //==== Shader ====\\
 
+type Author struct {
+	ID       UserID
+	Username Username
+}
+
 // Listings leave out Content, which can be large.
 type ShaderSummary struct {
 	ID          ShaderID
-	CreatedBy   *UserID
+	Author      *Author
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	Name        ShaderName
@@ -130,14 +135,14 @@ func (s ShaderSummary) IsVisibleTo(p Principal) bool {
 	if s.Visibility != VisibilityPrivate {
 		return true
 	}
-	return s.CreatedBy != nil && *s.CreatedBy == p.User.ID
+	return s.Author != nil && s.Author.ID == p.User.ID
 }
 
 func (s ShaderSummary) IsEditableBy(p Principal) bool {
 	if p.User.IsAdmin {
 		return true
 	}
-	return s.CreatedBy != nil && *s.CreatedBy == p.User.ID
+	return s.Author != nil && s.Author.ID == p.User.ID
 }
 
 type Shader struct {

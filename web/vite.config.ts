@@ -7,13 +7,18 @@ import { defineConfig } from "vitest/config";
 const devServer = "http://localhost:5173";
 
 // Vite reloads open pages when a template changes, since they're .html files under its root. It can't
-// see the Go server restart though, so `just dev` touches tmp/reload once the server is back.
+// see the Go server restart though, so `just dev` touches reload in WGSLTOY_DEV_DIR once the server is
+// back. Without `just dev` there's no server restart to wait for.
 function reloadOnServerRestart(): Plugin {
-  const sentinel = path.resolve(import.meta.dirname, "../tmp/reload");
+  const devDir = process.env["WGSLTOY_DEV_DIR"];
   return {
     name: "reload-on-server-restart",
     apply: "serve",
     configureServer(server) {
+      if (devDir === undefined) {
+        return;
+      }
+      const sentinel = path.join(devDir, "reload");
       server.watcher.add(sentinel);
       const reload = (file: string) => {
         if (file === sentinel) {

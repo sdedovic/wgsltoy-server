@@ -6,15 +6,16 @@ import (
 	"net"
 	"net/http"
 
+	"go.uber.org/fx"
+	"go.uber.org/fx/fxevent"
+	"go.uber.org/zap"
+
 	"github.com/sdedovic/wgsltoy-server/internal/controllers"
 	"github.com/sdedovic/wgsltoy-server/internal/domain"
 	"github.com/sdedovic/wgsltoy-server/internal/persistence"
 	"github.com/sdedovic/wgsltoy-server/internal/security"
 	"github.com/sdedovic/wgsltoy-server/internal/server"
 	"github.com/sdedovic/wgsltoy-server/internal/views"
-	"go.uber.org/fx"
-	"go.uber.org/fx/fxevent"
-	"go.uber.org/zap"
 )
 
 var Module = fx.Options(
@@ -71,7 +72,7 @@ func newVite(config Config) (*views.Vite, error) {
 }
 
 func newTemplates(config Config, vite *views.Vite) (*views.Templates, error) {
-	return views.NewTemplates(config.TemplateDir, vite, config.Dev)
+	return views.NewTemplates(config.TemplateDir, vite, controllers.URLFuncs(), config.Dev)
 }
 
 func newStaticController(config Config) *controllers.StaticController {

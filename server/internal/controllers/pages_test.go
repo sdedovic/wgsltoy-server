@@ -16,9 +16,10 @@ func TestPagesRenderWithTheirData(t *testing.T) {
 	signedIn := &domain.Principal{User: domain.User{Username: "someone"}}
 	shader := domain.Shader{Content: "fn mainImage(p: vec2f) -> vec4f { return vec4f(1.0); }"}
 	shader.Tags = domain.ShaderTags{"a", "b"}
+	shader.Author = &domain.Author{ID: signedIn.User.ID, Username: signedIn.User.Username}
 
 	for name, vite := range map[string]*views.Vite{"dev": views.NewDevVite("http://localhost:5173"), "build": builtVite(t)} {
-		tmpl, err := views.NewTemplates("../../../web/templates", vite, false)
+		tmpl, err := views.NewTemplates("../../../web/templates", vite, URLFuncs(), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -28,11 +29,12 @@ func TestPagesRenderWithTheirData(t *testing.T) {
 				page *views.Page
 				data any
 			}{
-				"gallery":  {tmpl.Gallery, galleryPageData{Principal: principal, Shaders: []domain.ShaderSummary{shader.ShaderSummary}}},
-				"login":    {tmpl.Login, loginPageData{Principal: principal, Error: "bad login"}},
-				"register": {tmpl.Register, registerPageData{Principal: principal, Error: "taken"}},
-				"profile":  {tmpl.Profile, profilePageData{Principal: principal, User: signedIn.User}},
-				"shader":   {tmpl.Shader, shaderPageData{Principal: principal, Shader: shader, CanEdit: principal != nil}},
+				"gallery":         {tmpl.Gallery, galleryPageData{Principal: principal, Shaders: []domain.ShaderSummary{shader.ShaderSummary}}},
+				"login":           {tmpl.Login, loginPageData{Principal: principal, Error: "bad login"}},
+				"register":        {tmpl.Register, registerPageData{Principal: principal, Error: "taken"}},
+				"profile":         {tmpl.Profile, profilePageData{Principal: principal, Profile: signedIn.User.ProfileFor(*signedIn)}},
+				"profile-private": {tmpl.Profile, profilePageData{Principal: principal, Profile: domain.Profile{Username: "someone", Private: true}}},
+				"shader":          {tmpl.Shader, shaderPageData{Principal: principal, Shader: shader, CanEdit: principal != nil}},
 				// only reachable signed in
 				"me": {tmpl.Me, mePageData{Principal: signedIn, Error: "invalid"}},
 			}

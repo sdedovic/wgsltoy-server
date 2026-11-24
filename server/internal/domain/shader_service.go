@@ -29,39 +29,38 @@ type UpdateShaderCommand struct {
 	Content     string
 }
 
-func (s *ShaderService) Create(ctx context.Context, cmd CreateShaderCommand) (ShaderID, error) {
+func (s *ShaderService) Create(ctx context.Context, cmd CreateShaderCommand) (Shader, error) {
 	principal, ok := PrincipalFromContext(ctx)
 	if !ok {
-		return "", ErrUnauthorized
+		return Shader{}, ErrUnauthorized
 	}
 
 	name, err := NewShaderName(cmd.Name)
 	if err != nil {
-		return "", err
+		return Shader{}, err
 	}
 	visibility, err := NewVisibility(cmd.Visibility)
 	if err != nil {
-		return "", err
+		return Shader{}, err
 	}
 	description, err := NewShaderDescription(cmd.Description)
 	if err != nil {
-		return "", err
+		return Shader{}, err
 	}
 	content, err := NewShaderContent(cmd.Content)
 	if err != nil {
-		return "", err
+		return Shader{}, err
 	}
 	tags, err := NewShaderTags(cmd.Tags)
 	if err != nil {
-		return "", err
+		return Shader{}, err
 	}
 
-	ownerID := principal.User.ID
 	createdAt := time.Now()
 	shader := Shader{
 		ShaderSummary: ShaderSummary{
 			ID:          GenerateShaderID(),
-			CreatedBy:   &ownerID,
+			Author:      &Author{ID: principal.User.ID, Username: principal.User.Username},
 			CreatedAt:   createdAt,
 			UpdatedAt:   createdAt,
 			Name:        name,
@@ -72,9 +71,9 @@ func (s *ShaderService) Create(ctx context.Context, cmd CreateShaderCommand) (Sh
 		Content: content,
 	}
 	if err := s.repo.Save(ctx, shader); err != nil {
-		return "", err
+		return Shader{}, err
 	}
-	return shader.ID, nil
+	return shader, nil
 }
 
 func (s *ShaderService) Get(ctx context.Context, id ShaderID) (Shader, error) {

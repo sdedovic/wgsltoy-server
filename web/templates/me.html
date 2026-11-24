@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>My Account</h1>
 {{if .Error}}<p class="error" role="alert">{{.Error}}</p>{{end}}
-<form id="update-form">
+<form id="update-form" action="{{meURL}}" data-method="PUT">
     <div>
         <label>Username<br><input name="username" value="{{.Principal.User.Username}}" required></label>
     </div>
@@ -21,6 +21,21 @@
 
 <hr>
 <h2>My Shaders</h2>
-<p><a href="/">view gallery</a></p>
+<p><a href="{{homeURL}}">view gallery</a></p>
+
+<hr>
+<h2>Delete Account</h2>
+<form action="{{meURL}}" data-method="DELETE" data-redirect="{{homeURL}}" data-confirm="Delete your account? This can't be undone.">
+    <div>
+        <label>My shaders<br>
+        <select name="shaderDisposition">
+            <option value="default">delete the private ones, keep the rest without an author</option>
+            <option value="remove_all">delete all of them</option>
+            <option value="donate_all">keep all of them without an author</option>
+        </select>
+        </label>
+    </div>
+    <button type="submit">delete account</button>
+</form>
 
 {{end}}

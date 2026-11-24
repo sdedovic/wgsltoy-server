@@ -19,14 +19,14 @@
 <body>
 <div class="site">
     <header class="site-header">
-        <h1><a href="/">WGSL Toy</a> <em class="wip">*work in progress</em></h1>
+        <h1><a href="{{homeURL}}">WGSL Toy</a> <em class="wip">*work in progress</em></h1>
         <nav>
             {{if .Principal}}
-            <a href="/me">{{.Principal.User.Username}}</a>
-            <form method="post" action="/logout"><button type="submit">logout</button></form>
+            <a href="{{meURL}}">{{.Principal.User.Username}}</a>
+            <form method="post" action="{{logoutURL}}"><button type="submit">logout</button></form>
             {{else}}
-            <a href="/login">login</a>
-            <a href="/register">register</a>
+            <a href="{{loginURL}}">login</a>
+            <a href="{{registerURL}}">register</a>
             {{end}}
             <a href="https://github.com/sdedovic/wgsltoy" aria-label="WGSL Toy on GitHub">{{template "icon-github"}}</a>
         </nav>

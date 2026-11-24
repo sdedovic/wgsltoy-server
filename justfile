@@ -39,7 +39,29 @@ generate:
 [group('codegen')]
 [working-directory('server')]
 openapi:
-    go tool swag init --v3.1 --quiet -g main.go -d cmd/wgsltoy-server,internal/controllers,internal/server -o ../docs/api --ot json,yaml
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=$(mktemp -d)
+    trap 'rm -rf "$out"' EXIT
+    go tool swag init --v3.1 --quiet -g main.go -d cmd/wgsltoy-server,internal/controllers,internal/server -o "$out" --ot yaml
+    mkdir -p ../docs/api
+    mv "$out"/*.yaml ../docs/api/openapi.yaml
+
+# format the server and frontend
+[group('format')]
+fmt: server-fmt web-fmt
+
+# format the server
+[group('format')]
+[working-directory('server')]
+server-fmt:
+    golangci-lint fmt ./...
+
+# format the frontend
+[group('format')]
+[working-directory('web')]
+web-fmt:
+    npm run format
 
 # run the server and Vite with hot reload; the server restarts on Go and config changes
 [group('dev')]
@@ -47,14 +69,15 @@ openapi:
 dev:
     #!/usr/bin/env bash
     set -euo pipefail
-    trap 'kill 0' EXIT
-    mkdir -p ../tmp
+    # the dev build and Vite's reload file live in a temporary directory, removed on exit
+    export WGSLTOY_DEV_DIR="$(mktemp -d)"
+    trap 'rm -rf "$WGSLTOY_DEV_DIR"; kill 0' EXIT
     npm --prefix ../web run dev &
     APP_PROFILE=dev watchexec --restart --exts go,yaml --watch cmd --watch internal \
       --watch application.yaml --watch application-dev.yaml -- \
-      'go build -o ../tmp/wgsltoy-server ./cmd/wgsltoy-server && {
-        (for _ in $(seq 100); do curl -sf localhost:8080/api/v1/health >/dev/null && touch ../tmp/reload && break; sleep 0.1; done) &
-        exec ../tmp/wgsltoy-server
+      'go build -o "$WGSLTOY_DEV_DIR/wgsltoy-server" ./cmd/wgsltoy-server && {
+        (for _ in $(seq 100); do curl -sf localhost:8080/health >/dev/null && touch "$WGSLTOY_DEV_DIR/reload" && break; sleep 0.1; done) &
+        exec "$WGSLTOY_DEV_DIR/wgsltoy-server"
       }'
 
 # build the server and frontend

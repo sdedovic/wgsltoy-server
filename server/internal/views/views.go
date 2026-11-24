@@ -29,12 +29,14 @@ type Page struct {
 	reload bool
 }
 
-// NewTemplates parses the templates in dir. With reload, they're re-read on every render.
-func NewTemplates(dir string, vite *Vite, reload bool) (*Templates, error) {
+// NewTemplates parses the templates in dir, which can call funcs. With reload, they're re-read on every
+// render.
+func NewTemplates(dir string, vite *Vite, funcs template.FuncMap, reload bool) (*Templates, error) {
 	shared := func() (*template.Template, error) {
 		t, err := template.New("").
 			Option("missingkey=error").
 			Funcs(vite.FuncMap()).
+			Funcs(funcs).
 			ParseFiles(filepath.Join(dir, "layout.html"))
 		if err != nil {
 			return nil, err

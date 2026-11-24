@@ -1,7 +1,5 @@
 .direnv
 
-tmp
-
 .idea
 .envrc
 bin

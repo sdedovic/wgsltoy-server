@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/sdedovic/wgsltoy-server/internal/server"
 	"github.com/sdedovic/wgsltoy-server/internal/views"
 )
 
@@ -18,8 +19,8 @@ func NewStaticController(distDir string) *StaticController {
 	return &StaticController{http.StripPrefix(views.AssetBase+"assets/", files)}
 }
 
-func (c *StaticController) Register(mux *http.ServeMux) {
-	mux.Handle("GET "+views.AssetBase+"assets/", http.HandlerFunc(c.serve))
+func (c *StaticController) Register(router *server.Router) {
+	router.Handle("GET", server.Route(views.AssetBase+"assets/"), http.HandlerFunc(c.serve))
 }
 
 func (c *StaticController) serve(w http.ResponseWriter, r *http.Request) {

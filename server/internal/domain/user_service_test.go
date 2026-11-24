@@ -67,7 +67,7 @@ func TestUserService_Register_FailValidation(t *testing.T) {
 			"valid-password123",
 		},
 		{"username invalid characters",
-			"one​two​three",
+			"one\u200btwo\u200bthree",
 			"admin@wgsltoy.com",
 			"valid-password123",
 		},

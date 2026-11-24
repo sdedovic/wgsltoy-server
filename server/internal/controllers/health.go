@@ -12,19 +12,16 @@ func NewHealthController() *HealthController {
 	return &HealthController{}
 }
 
-func (c *HealthController) Register(mux *http.ServeMux) {
-	mux.Handle("GET /api/v1/health", server.Handle(c.health))
+func (c *HealthController) Register(router *server.Router) {
+	router.Handle("GET", healthRoute, server.Handle(c.health))
 }
 
-type healthResponse struct {
-	Status string `json:"status"`
-}
-
-//	@Summary	Health check
-//	@Tags		health
-//	@Produce	json
-//	@Success	200	{object}	healthResponse
-//	@Router		/api/v1/health [get]
+// @Summary	Health check
+// @Tags		health
+// @Produce	json
+// @Success	200	{object}	healthDTO
+// @Router		/health [get]
+// Always JSON, it's for probes rather than people.
 func (c *HealthController) health(w http.ResponseWriter, r *http.Request) error {
-	return server.WriteJSON(w, http.StatusOK, healthResponse{"ok"})
+	return server.WriteJSON(w, http.StatusOK, healthDTO{"ok"})
 }

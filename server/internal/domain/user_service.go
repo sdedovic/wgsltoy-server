@@ -122,21 +122,18 @@ func (s *UserService) GetCurrent(ctx context.Context) (User, error) {
 	return principal.User, nil
 }
 
-func (s *UserService) GetByUsername(ctx context.Context, username string) (User, error) {
+func (s *UserService) GetProfile(ctx context.Context, username string) (Profile, error) {
 	if len(username) == 0 {
-		return User{}, ErrNotFound
+		return Profile{}, ErrNotFound
 	}
 
 	user, err := s.repo.FindByUsername(ctx, Username(username))
 	if err != nil {
-		return User{}, err
+		return Profile{}, err
 	}
 
 	principal, _ := PrincipalFromContext(ctx)
-	if !user.IsVisibleTo(principal) {
-		return User{}, ErrNotFound
-	}
-	return user, nil
+	return user.ProfileFor(principal), nil
 }
 
 func (s *UserService) Update(ctx context.Context, cmd UpdateUserCommand) (User, error) {

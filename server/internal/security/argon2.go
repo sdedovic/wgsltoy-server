@@ -8,8 +8,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/sdedovic/wgsltoy-server/internal/domain"
 	"golang.org/x/crypto/argon2"
+
+	"github.com/sdedovic/wgsltoy-server/internal/domain"
 )
 
 const defaultMemory uint32 = 64 * 1024

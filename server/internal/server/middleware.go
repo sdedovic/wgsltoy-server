@@ -4,8 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/sdedovic/wgsltoy-server/internal/domain"
 	"go.uber.org/zap"
+
+	"github.com/sdedovic/wgsltoy-server/internal/domain"
 )
 
 type loggerKey struct{}
@@ -29,6 +30,18 @@ func withSecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		next.ServeHTTP(w, r)
 	})
+}
+
+var ErrCrossOrigin = RequestError{http.StatusForbidden, "CROSS_ORIGIN", "Cross-origin requests that change data are not allowed."}
+
+// withCrossOriginProtection rejects browser requests from other sites that aren't GET, HEAD or OPTIONS,
+// since the session cookie would go with them.
+func withCrossOriginProtection(next http.Handler) http.Handler {
+	protection := http.NewCrossOriginProtection()
+	protection.SetDenyHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		WriteError(w, r, ErrCrossOrigin)
+	}))
+	return protection.Handler(next)
 }
 
 type AuthMiddleware struct {

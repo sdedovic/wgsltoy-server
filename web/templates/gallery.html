@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Shaders</h1>
 {{if .Principal}}
-<form method="post" action="/shader">
+<form method="post" action="{{shadersURL}}">
     <input name="name" placeholder="shader name" required>
     <select name="visibility">
         <option value="public">public</option>
@@ -15,8 +15,8 @@
 <ul>
 {{range .Shaders}}
 <li>
-    <a href="/shader/{{.ID}}">{{.Name}}</a>
-    {{if .CreatedBy}}&mdash; <a href="/{{.CreatedBy}}">{{.CreatedBy}}</a>{{end}}
+    <a href="{{shaderURL .ID}}">{{.Name}}</a>
+    {{with .Author}}&mdash; <a href="{{userURL .Username}}">{{.Username}}</a>{{end}}
 </li>
 {{end}}
 </ul>

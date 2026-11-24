@@ -151,3 +151,20 @@ func (u User) IsVisibleTo(p Principal) bool {
 func (u User) IsEditableBy(p Principal) bool {
 	return p.User.IsAdmin || u.ID == p.User.ID
 }
+
+//==== Profile ====\\
+
+// What others see of a user. A private account shows only its username.
+type Profile struct {
+	Username  Username
+	Private   bool
+	CreatedAt *time.Time
+}
+
+func (u User) ProfileFor(p Principal) Profile {
+	if !u.IsVisibleTo(p) {
+		return Profile{Username: u.Username, Private: true}
+	}
+	createdAt := u.CreatedAt
+	return Profile{Username: u.Username, CreatedAt: &createdAt}
+}

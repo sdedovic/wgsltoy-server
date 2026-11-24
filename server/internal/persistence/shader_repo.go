@@ -8,15 +8,32 @@ import (
 
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+
 	"github.com/sdedovic/wgsltoy-server/internal/domain"
 )
 
 var shaderColumns = []string{"shader_id", "created_by", "created_at", "updated_at", "name", "visibility", "description", "tags", "content"}
-var shaderSummaryColumns = shaderColumns[:len(shaderColumns)-1]
+
+// reads join users for the author's username, so columns are qualified
+var shaderSelectColumns = []string{"s.shader_id", "s.created_by", "u.username AS author_username", "s.created_at", "s.updated_at",
+	"s.name", "s.visibility", "s.description", "s.tags", "s.content"}
+var shaderSummarySelectColumns = shaderSelectColumns[:len(shaderSelectColumns)-1]
+
+func selectShaders(columns []string) squirrel.SelectBuilder {
+	return psql.Select(columns...).From("shaders s").LeftJoin("users u ON u.user_id = s.created_by")
+}
+
+func toAuthor(id, username *string) *domain.Author {
+	if id == nil || username == nil {
+		return nil
+	}
+	return &domain.Author{ID: domain.UserID(*id), Username: domain.Username(*username)}
+}
 
 type shaderRow struct {
 	ID          string    `db:"shader_id"`
 	CreatedBy   *string   `db:"created_by"`
+	Author      *string   `db:"author_username"`
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 	Name        string    `db:"name"`
@@ -27,15 +44,10 @@ type shaderRow struct {
 }
 
 func (r shaderRow) toDomain() domain.Shader {
-	var createdBy *domain.UserID
-	if r.CreatedBy != nil {
-		id := domain.UserID(*r.CreatedBy)
-		createdBy = &id
-	}
 	return domain.Shader{
 		ShaderSummary: domain.ShaderSummary{
 			ID:          domain.ShaderID(r.ID),
-			CreatedBy:   createdBy,
+			Author:      toAuthor(r.CreatedBy, r.Author),
 			CreatedAt:   r.CreatedAt,
 			UpdatedAt:   r.UpdatedAt,
 			Name:        domain.ShaderName(r.Name),
@@ -50,6 +62,7 @@ func (r shaderRow) toDomain() domain.Shader {
 type shaderSummaryRow struct {
 	ID          string    `db:"shader_id"`
 	CreatedBy   *string   `db:"created_by"`
+	Author      *string   `db:"author_username"`
 	CreatedAt   time.Time `db:"created_at"`
 	UpdatedAt   time.Time `db:"updated_at"`
 	Name        string    `db:"name"`
@@ -59,14 +72,9 @@ type shaderSummaryRow struct {
 }
 
 func (r shaderSummaryRow) toDomain() domain.ShaderSummary {
-	var createdBy *domain.UserID
-	if r.CreatedBy != nil {
-		id := domain.UserID(*r.CreatedBy)
-		createdBy = &id
-	}
 	return domain.ShaderSummary{
 		ID:          domain.ShaderID(r.ID),
-		CreatedBy:   createdBy,
+		Author:      toAuthor(r.CreatedBy, r.Author),
 		CreatedAt:   r.CreatedAt,
 		UpdatedAt:   r.UpdatedAt,
 		Name:        domain.ShaderName(r.Name),
@@ -91,8 +99,8 @@ func (r *shaderRepository) Save(ctx context.Context, shader domain.Shader) error
 	defer cancel()
 
 	var createdBy interface{}
-	if shader.CreatedBy != nil {
-		createdBy = string(*shader.CreatedBy)
+	if shader.Author != nil {
+		createdBy = string(shader.Author.ID)
 	}
 
 	sql, args, err := psql.
@@ -119,8 +127,8 @@ func (r *shaderRepository) FindByID(ctx context.Context, id domain.ShaderID) (do
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	sql, args, err := psql.Select(shaderColumns...).From("shaders").
-		Where(squirrel.Eq{"shader_id": string(id)}).
+	sql, args, err := selectShaders(shaderSelectColumns).
+		Where(squirrel.Eq{"s.shader_id": string(id)}).
 		ToSql()
 	if err != nil {
 		return domain.Shader{}, fmt.Errorf("failed building sql caused by: %w", err)
@@ -146,8 +154,8 @@ func (r *shaderRepository) FindByIDAndOwner(ctx context.Context, id domain.Shade
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	sql, args, err := psql.Select(shaderColumns...).From("shaders").
-		Where(squirrel.Eq{"shader_id": string(id), "created_by": string(owner)}).
+	sql, args, err := selectShaders(shaderSelectColumns).
+		Where(squirrel.Eq{"s.shader_id": string(id), "s.created_by": string(owner)}).
 		ToSql()
 	if err != nil {
 		return domain.Shader{}, fmt.Errorf("failed building sql caused by: %w", err)
@@ -173,11 +181,9 @@ func (r *shaderRepository) FindTop100ByCreatedByOrderByUpdatedAtDesc(ctx context
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	sql, args, err := psql.
-		Select(shaderSummaryColumns...).
-		From("shaders").
-		Where(squirrel.Eq{"created_by": string(createdBy)}).
-		OrderBy("updated_at DESC").
+	sql, args, err := selectShaders(shaderSummarySelectColumns).
+		Where(squirrel.Eq{"s.created_by": string(createdBy)}).
+		OrderBy("s.updated_at DESC").
 		Limit(100).
 		ToSql()
 	if err != nil {
@@ -205,11 +211,9 @@ func (r *shaderRepository) FindTop100PublicOrderByUpdatedAtDesc(ctx context.Cont
 	ctx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	sql, args, err := psql.
-		Select(shaderSummaryColumns...).
-		From("shaders").
-		Where(squirrel.Eq{"visibility": string(domain.VisibilityPublic)}).
-		OrderBy("updated_at DESC").
+	sql, args, err := selectShaders(shaderSummarySelectColumns).
+		Where(squirrel.Eq{"s.visibility": string(domain.VisibilityPublic)}).
+		OrderBy("s.updated_at DESC").
 		Limit(100).
 		ToSql()
 	if err != nil {

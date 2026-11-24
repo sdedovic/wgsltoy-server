@@ -1,5 +1,5 @@
 /**
- * Shadertoy's iMouse, in device pixels from the top left. xy is the position while a button is down
+ * Trying to copy Shadertoy's iMouse, in device pixels from the top left. xy is the position while a button is down
  * and stays at the last position after release. zw is where the button went down, negated after release.
  */
 export class Mouse {

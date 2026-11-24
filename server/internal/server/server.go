@@ -8,13 +8,13 @@ import (
 )
 
 func NewHandler(log *zap.Logger, auth *AuthMiddleware, controllers []Controller) http.Handler {
-	mux := http.NewServeMux()
+	router := NewRouter()
 	for _, controller := range controllers {
-		controller.Register(mux)
+		controller.Register(router)
 	}
 
 	// TODO: JSON bodies for the mux's own 404 and 405 responses
-	return withLogger(log, withSecurityHeaders(auth.Handler(mux)))
+	return withLogger(log, withSecurityHeaders(withCrossOriginProtection(auth.Handler(router))))
 }
 
 func New(addr string, handler http.Handler) *http.Server {
